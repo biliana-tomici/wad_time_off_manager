@@ -1,0 +1,30 @@
+<div class="sidebar">
+  <div class="sidebar-header">
+    <h1>Time Off Manager</h1>
+  </div>
+
+  <div class="divider"></div>
+
+  <nav class="sidebar-nav">
+    <button *ngFor="let button of navButtons" class="nav-button" [routerLink]="button.link">
+      <img [src]="button.icon" alt="Icon" />
+      {{ button.label }}
+    </button>
+  </nav>
+
+
+  <div class="user-card">
+    <div class="bottom-divider"></div>
+
+    <div class="user-info">
+      <img src="assets/UserIcon.png" class="user-icon" alt="User" />
+      <div class="user-details">
+        <div class="username">User1</div>
+        <div class="job-title">
+          Employee
+          <img src="assets/ExpandUp.png" class="arrow-icon" alt="Up Arrow" />
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

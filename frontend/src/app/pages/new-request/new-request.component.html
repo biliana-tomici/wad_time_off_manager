@@ -1,0 +1,25 @@
+<form [formGroup]="requestForm" (ngSubmit)="submit()">
+  <label>
+    Start Date:
+    <input type="date" formControlName="startDate" />
+  </label>
+
+  <label>
+    End Date:
+    <input type="date" formControlName="endDate" />
+  </label>
+
+  <label>
+    Type:
+    <select formControlName="type">
+      <option *ngFor="let type of leaveTypes" [value]="type">{{ type }}</option>
+    </select>
+  </label>
+
+  <label>
+    Reason:
+    <textarea formControlName="explanation"></textarea>
+  </label>
+
+  <button type="submit" [disabled]="requestForm.invalid">Submit Request</button>
+</form>

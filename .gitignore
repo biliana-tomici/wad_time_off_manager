@@ -1,0 +1,67 @@
+# Node / Angular
+node_modules/
+dist/
+out-tsc/
+.angular/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+.env
+
+# IDEs
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Java / Spring Boot
+target/
+bin/
+*.class
+*.jar
+*.war
+*.iml
+*.xml
+*.log
+*.swp
+
+# Maven
+.mvn/
+.settings/
+*.mvn
+
+# Test reports
+test-output/
+surefire-reports/
+jacoco.exec
+
+# Misc
+*.tmp
+*.bak
+# Compiled class file
+*.class
+
+# Log file
+*.log
+
+# BlueJ files
+*.ctxt
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files #
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+hs_err_pid*
+replay_pid*

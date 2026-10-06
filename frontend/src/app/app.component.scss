@@ -1,0 +1,10 @@
+.main-content {
+  background-color: #ffffff;
+  position: absolute;
+  left: 291px;
+  width: calc(100vw - 291px);
+  height: 100vh;
+  border-radius: 15px;
+  z-index: 1;
+  overflow: hidden;
+}
