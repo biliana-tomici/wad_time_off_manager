@@ -9,7 +9,7 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = ManagerMapper.class)
 public interface ProjectMapper {
 
     Project toEntity(ProjectDto project);

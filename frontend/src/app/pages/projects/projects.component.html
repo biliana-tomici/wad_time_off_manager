@@ -1,6 +1,67 @@
-<div class="placeholder-wrapper">
-  <div class="placeholder-content">
-    <h1>🚧 Work In Progress</h1>
-    <p>Projects is not yet implemented.</p>
+<section>
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Projects</p>
+      <h2>Who is covered.</h2>
+      <p class="lede">Each project has a minimum headcount and a manager. Reports list requests created in the chosen window.</p>
+    </div>
+  </header>
+
+  @if (error()) { <div class="banner error">{{ error() }}</div> }
+  @if (notice()) { <div class="banner">{{ notice() }}</div> }
+
+  <div class="split">
+    <div class="stack">
+      @if (loading()) {
+        <p class="muted">Loading…</p>
+      } @else if (projects().length === 0) {
+        <p class="empty">No projects yet.</p>
+      }
+      @for (project of projects(); track project.id) {
+        <article class="card project-card">
+          <label class="field">Name
+            <input [value]="draftName(project)" (input)="setDraft(project.id, $event)" />
+          </label>
+          <div class="kv"><span>Minimum people</span><b>{{ project.minEmp }}</b></div>
+          <div class="kv"><span>Manager</span><b>{{ fullName(project.manager) }}</b></div>
+          <div class="row-actions" style="margin-top: 12px;">
+            <button type="button" class="btn ghost" (click)="save(project)">Save name</button>
+            <select [value]="periodFor(project.id)" (change)="setPeriod(project.id, $event)">
+              @for (period of periodOptions; track period) {
+                <option [value]="period">{{ period }}</option>
+              }
+            </select>
+            <button type="button" class="btn pine" (click)="download(project)">Download PDF</button>
+            @if (confirmId() === project.id) {
+              <button type="button" class="btn danger" (click)="remove(project)">Confirm delete</button>
+            } @else {
+              <button type="button" class="btn danger" (click)="confirmId.set(project.id)">Delete</button>
+            }
+          </div>
+        </article>
+      }
+    </div>
+
+    <form class="card stack" [formGroup]="form" (ngSubmit)="create()">
+      <div>
+        <p class="eyebrow">New project</p>
+        <h3>Open a project</h3>
+      </div>
+      <label class="field">Name
+        <input formControlName="name" placeholder="Project Epsilon" />
+      </label>
+      <label class="field">Minimum people
+        <input type="number" min="1" formControlName="minEmp" />
+      </label>
+      <label class="field">Manager
+        <select formControlName="managerId">
+          <option value="">Choose a manager</option>
+          @for (user of session.users(); track user.id) {
+            <option [value]="user.id">{{ user.firstName }} {{ user.lastName }}</option>
+          }
+        </select>
+      </label>
+      <button class="btn primary" type="submit">Create project</button>
+    </form>
   </div>
-</div>
+</section>

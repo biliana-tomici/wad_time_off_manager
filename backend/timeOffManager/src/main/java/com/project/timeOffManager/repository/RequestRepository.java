@@ -1,6 +1,7 @@
 package com.project.timeOffManager.repository;
 
 import com.project.timeOffManager.entity.Request;
+import com.project.timeOffManager.enums.Status;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,9 +16,10 @@ public interface RequestRepository extends JpaRepository<Request, Long> {
 
     Request findRequestById(Long requestId);
 
-    @Query("SELECT r FROM Request r" +
-            " WHERE r.employee.manager.id = :managerId AND r.status = 'Pending'")
-    Page<Request> findPendingRequestsByManagerId(@Param("managerId") Long managerId, Pageable pageable);
+    @Query("SELECT r FROM Request r WHERE r.employee.manager.id = :managerId AND r.status = :status")
+    Page<Request> findPendingRequestsByManagerId(@Param("managerId") Long managerId,
+                                                 @Param("status") Status status,
+                                                 Pageable pageable);
 
     Page<Request> findAllByEmployee_Id_OrderByCreationDateDesc(Long employeeId, Pageable pageable);
 

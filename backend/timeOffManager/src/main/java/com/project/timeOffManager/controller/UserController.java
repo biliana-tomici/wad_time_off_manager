@@ -9,6 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/customer")
 public class UserController {
@@ -18,6 +20,13 @@ public class UserController {
     @Autowired
     public UserController(UserService userService) {
         this.userService = userService;
+    }
+
+    @Operation(summary = "Get all customers")
+    @ApiResponse(responseCode = "200", description = "Users found")
+    @GetMapping
+    public ResponseEntity<List<UserDto>> getAllCustomers() {
+        return ResponseEntity.ok(userService.getAllUsers());
     }
 
     @Operation(summary = "Get customer by ID")

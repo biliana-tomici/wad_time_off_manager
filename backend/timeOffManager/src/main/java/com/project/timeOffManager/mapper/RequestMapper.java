@@ -9,7 +9,7 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = {UserMapper.class, BalanceMapper.class})
 public interface RequestMapper {
 
     Request toEntity(RequestDto requestDto);

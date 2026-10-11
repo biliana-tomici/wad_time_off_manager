@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-
 import { RequestHistoryComponent } from './request-history.component';
+import { testProviders } from '../../testing/test-providers';
 
 describe('RequestHistoryComponent', () => {
   let component: RequestHistoryComponent;
@@ -8,9 +8,9 @@ describe('RequestHistoryComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [RequestHistoryComponent]
-    })
-    .compileComponents();
+      imports: [RequestHistoryComponent],
+      providers: testProviders,
+    }).compileComponents();
 
     fixture = TestBed.createComponent(RequestHistoryComponent);
     component = fixture.componentInstance;

@@ -1,6 +1,93 @@
-<div class="placeholder-wrapper">
-  <div class="placeholder-content">
-    <h1>🚧 Work In Progress</h1>
-    <p>Request History is not yet implemented.</p>
+<section>
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">History</p>
+      <h2>Everything you asked for.</h2>
+      <p class="lede">Pending and edited requests can be changed. Saving a change marks the request as edited.</p>
+    </div>
+  </header>
+
+  @if (error()) { <div class="banner error">{{ error() }}</div> }
+  @if (notice()) { <div class="banner">{{ notice() }}</div> }
+
+  <div class="chips" style="margin-bottom: 14px;">
+    @for (item of filters; track item) {
+      <button type="button" class="chip" [class.on]="filter() === item" (click)="filter.set(item)">
+        {{ item === 'ALL' ? 'All' : statusLabel(item) }}
+      </button>
+    }
   </div>
-</div>
+
+  <div class="card table-wrap">
+    @if (loading()) {
+      <p class="muted">Loading…</p>
+    } @else if (visible().length === 0) {
+      <p class="empty">No requests in this view.</p>
+    } @else {
+      <table>
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>Allowance</th>
+            <th>Reason</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (request of visible(); track request.id) {
+            <tr>
+              <td>
+                {{ prettyDate(request.startDate) }} – {{ prettyDate(request.endDate) }}
+                <span class="sub">{{ inclusiveDays(request.startDate, request.endDate) }} days</span>
+              </td>
+              <td>{{ request.balance?.name || '—' }}</td>
+              <td>{{ request.explanation }}</td>
+              <td><span class="pill pill-{{ request.status.toLowerCase() }}">{{ statusLabel(request.status) }}</span></td>
+              <td>
+                <div class="row-actions">
+                  @if (canEdit(request)) {
+                    <button type="button" class="btn ghost" (click)="startEdit(request)">Edit</button>
+                  }
+                  @if (request.status !== 'CANCELLED' && request.status !== 'REJECTED') {
+                    <button type="button" class="btn ghost" (click)="cancel(request)">Cancel</button>
+                  }
+                  @if (confirmId() === request.id) {
+                    <button type="button" class="btn danger" (click)="remove(request)">Confirm delete</button>
+                  } @else {
+                    <button type="button" class="btn danger" (click)="confirmId.set(request.id)">Delete</button>
+                  }
+                </div>
+              </td>
+            </tr>
+            @if (editingId() === request.id) {
+              <tr>
+                <td colspan="5">
+                  <form class="inline" [formGroup]="editForm" (ngSubmit)="saveEdit(request)">
+                    <label class="field">Allowance
+                      <select formControlName="balanceId">
+                        @for (balance of balances(); track balance.id) {
+                          <option [value]="balance.id">{{ balance.name }}</option>
+                        }
+                      </select>
+                    </label>
+                    <label class="field">Start
+                      <input type="date" formControlName="startDate" />
+                    </label>
+                    <label class="field">End
+                      <input type="date" formControlName="endDate" />
+                    </label>
+                    <label class="field">Reason
+                      <input formControlName="explanation" />
+                    </label>
+                    <button class="btn primary" type="submit">Save</button>
+                  </form>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</section>

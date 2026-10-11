@@ -32,10 +32,16 @@ public class ReportController {
                                                         @Parameter(description = "Time period", required = true)
                                                         @RequestParam("timePeriod") TimePeriod timePeriod) {
 
+        byte[] pdf = reportService.getProjectReportPdf(projectId, timePeriod);
+
+        if (pdf == null) {
+            return ResponseEntity.notFound().build();
+        }
+
         return ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename=project_report_" + projectId + ".pdf")
                 .contentType(MediaType.APPLICATION_PDF)
-                .body(reportService.getProjectReportPdf(projectId, timePeriod));
+                .body(pdf);
 
     }
 }

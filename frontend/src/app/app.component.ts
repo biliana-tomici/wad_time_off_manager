@@ -1,16 +1,17 @@
-import { Component } from '@angular/core';
-import {RouterOutlet} from '@angular/router';
-import {SidebarComponent} from './common/sidebar/sidebar.component';
-import {HeaderComponent} from './common/header/header.component';
-import { ReactiveFormsModule } from '@angular/forms';
+import { Component, inject } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
+import { SidebarComponent } from './common/sidebar/sidebar.component';
+import { HeaderComponent } from './common/header/header.component';
+import { SessionService } from './services/session.service';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, SidebarComponent, HeaderComponent, ReactiveFormsModule],
+  imports: [RouterOutlet, SidebarComponent, HeaderComponent],
   templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss'],
+  styleUrl: './app.component.scss',
 })
 export class AppComponent {
   title = 'frontend';
+  readonly session = inject(SessionService);
 }

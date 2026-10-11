@@ -27,6 +27,10 @@ public class UserService {
         return userMapper.toDto(user);
     }
 
+    public List<UserDto> getAllUsers() {
+        return userMapper.toDtoList(userRepository.findAll());
+    }
+
     @Transactional
     public UserDto createUser(UserDto user) {
 

@@ -78,6 +78,24 @@ public class RequestController {
         return ResponseEntity.ok(updatedRequest);
     }
 
+    @Operation(summary = "Update the status of a request")
+    @ApiResponse(responseCode = "200", description = "Status updated")
+    @ApiResponse(responseCode = "404", description = "Request not found")
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<RequestDto> updateStatus(@Parameter(description = "ID of the request", required = true)
+                                                   @PathVariable("id") Long id,
+                                                   @Parameter(description = "New status", required = true)
+                                                   @RequestParam("status") com.project.timeOffManager.enums.Status status) {
+
+        RequestDto updatedRequest = requestService.updateStatus(id, status);
+
+        if (updatedRequest == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(updatedRequest);
+    }
+
     @Operation(summary = "Delete a request by ID")
     @ApiResponse(responseCode = "204", description = "Request deleted successfully")
     @ApiResponse(responseCode = "404", description = "Request not found")

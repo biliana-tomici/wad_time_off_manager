@@ -2,8 +2,10 @@ package com.project.timeOffManager.service;
 
 import com.project.timeOffManager.dto.BalanceDto;
 import com.project.timeOffManager.entity.Balance;
+import com.project.timeOffManager.entity.User;
 import com.project.timeOffManager.mapper.BalanceMapper;
 import com.project.timeOffManager.repository.BalanceRepository;
+import com.project.timeOffManager.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
@@ -16,11 +18,13 @@ public class BalanceService {
 
     private final BalanceRepository balanceRepository;
     private final BalanceMapper balanceMapper;
+    private final UserRepository userRepository;
 
     @Autowired
-    public BalanceService(BalanceRepository balanceRepository, BalanceMapper balanceMapper) {
+    public BalanceService(BalanceRepository balanceRepository, BalanceMapper balanceMapper, UserRepository userRepository) {
         this.balanceRepository = balanceRepository;
         this.balanceMapper = balanceMapper;
+        this.userRepository = userRepository;
     }
 
     public BalanceDto getBalanceById(Long balanceId) {
@@ -32,7 +36,17 @@ public class BalanceService {
 
     public BalanceDto createBalance(BalanceDto balanceDto) {
 
+        if (balanceDto.employee() == null || balanceDto.employee().id() == null) {
+            return null;
+        }
+
+        User employee = userRepository.findCustomerById(balanceDto.employee().id());
+        if (employee == null) {
+            return null;
+        }
+
         Balance balance = balanceMapper.toEntity(balanceDto);
+        balance.setEmployee(employee);
         Balance savedBalance = balanceRepository.save(balance);
 
         return balanceMapper.toDto(savedBalance);

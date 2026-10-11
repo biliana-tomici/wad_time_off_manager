@@ -1,28 +1,115 @@
-<section class="top-row">
-  <form>
-    <button
-      pButton
-      type="button"
-      label="New Request"
-      class="p-button-raised p-button-rounded p-button-outlined custom-button"
-      routerLink="/new-request"
-    ></button>
-  </form>
+<section class="page">
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Overview</p>
+      <h2>Your leave, in one place.</h2>
+      <p class="lede">Allowances, open requests, and the projects tied to {{ fullName(session.current()) }}.</p>
+    </div>
+    <a class="btn primary" routerLink="/new-request">New request</a>
+  </header>
 
-  <p-card class="info-tab" header="Days Rest Leave">
-    <div class="value">10</div>
-  </p-card>
+  @if (error()) { <div class="banner error">{{ error() }}</div> }
+  @if (notice()) { <div class="banner">{{ notice() }}</div> }
 
-  <p-card class="info-tab" header="Days Sick Leave">
-    <div class="value">5</div>
-  </p-card>
+  <div class="stats">
+    <article class="card stat">
+      <span>Days left</span>
+      <strong>{{ daysLeft() }}</strong>
+    </article>
+    <article class="card stat">
+      <span>Waiting</span>
+      <strong>{{ pendingCount() }}</strong>
+    </article>
+    <article class="card stat">
+      <span>Approved</span>
+      <strong>{{ approvedCount() }}</strong>
+    </article>
+    <article class="card stat">
+      <span>Projects</span>
+      <strong>{{ session.current()?.projects?.length || 0 }}</strong>
+    </article>
+  </div>
 
-  <p-card class="info-tab" header="Active Requests">
-    <div class="value">2</div>
-  </p-card>
+  <div class="section-title">
+    <h3>Allowances</h3>
+    <button type="button" class="btn ghost" (click)="showAllowance.set(!showAllowance())">
+      {{ showAllowance() ? 'Close' : 'Add allowance' }}
+    </button>
+  </div>
+
+  @if (showAllowance()) {
+    <form class="card inline" [formGroup]="allowanceForm" (ngSubmit)="addAllowance()">
+      <label class="field">Name
+        <input formControlName="name" />
+      </label>
+      <label class="field">Days left
+        <input type="number" min="0" formControlName="daysLeft" />
+      </label>
+      <label class="field">Maximum
+        <input type="number" min="1" formControlName="maxDays" />
+      </label>
+      <button class="btn pine" type="submit">Save</button>
+    </form>
+  }
+
+  @if (balances().length === 0) {
+    <p class="empty">No allowances yet for this person.</p>
+  } @else {
+    <div class="card-grid">
+      @for (balance of balances(); track balance.id) {
+        <article class="card">
+          <div class="section-title">
+            <h3>{{ balance.name }}</h3>
+            <button type="button" class="btn danger" (click)="removeBalance(balance)">Remove</button>
+          </div>
+          <div class="meter" aria-hidden="true"><span [style.width.%]="percent(balance)"></span></div>
+          <p><b>{{ balance.daysLeft }}</b> of {{ balance.maxDays }} days left</p>
+        </article>
+      }
+    </div>
+  }
+
+  <div class="split" style="margin-top: 18px;">
+    <section class="card">
+      <div class="section-title">
+        <h3>Latest requests</h3>
+        <a routerLink="/request-history">History</a>
+      </div>
+      @if (loading()) {
+        <p class="muted">Loading…</p>
+      } @else if (recent().length === 0) {
+        <p class="empty">Nothing requested yet.</p>
+      } @else {
+        @for (request of recent(); track request.id) {
+          <div class="kv">
+            <div>
+              <b>{{ request.balance?.name || 'Leave' }}</b>
+              <span class="sub">{{ prettyDate(request.startDate) }} – {{ prettyDate(request.endDate) }} · {{ inclusiveDays(request.startDate, request.endDate) }} days</span>
+            </div>
+            <span class="pill pill-{{ request.status.toLowerCase() }}">{{ statusLabel(request.status) }}</span>
+          </div>
+        }
+      }
+    </section>
+
+    <section class="card">
+      <h3>Projects</h3>
+      @if (!session.current()?.projects?.length) {
+        <p class="empty">Not assigned to a project.</p>
+      } @else {
+        @for (project of session.current()?.projects ?? []; track project.id) {
+          <div class="kv">
+            <span>{{ project.name }}</span>
+            <b>{{ fullName(project.manager) }}</b>
+          </div>
+        }
+      }
+      @if (session.team().length) {
+        <h3 style="margin-top: 16px;">Your team</h3>
+        @for (person of session.team(); track person.id) {
+          <div class="kv"><span>{{ fullName(person) }}</span></div>
+        }
+      }
+    </section>
+  </div>
 </section>
-
-<div class="active-requests">
-  Active Requests
-</div>
-

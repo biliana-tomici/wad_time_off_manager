@@ -1,1 +1,76 @@
-<p>management works!</p>
+<section>
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Management</p>
+      <h2>Review the queue.</h2>
+      <p class="lede">Pending requests from people who report to {{ fullName(session.current()) }}. Switch to Alice Smith to see the seeded queue.</p>
+    </div>
+  </header>
+
+  @if (error()) { <div class="banner error">{{ error() }}</div> }
+  @if (notice()) { <div class="banner">{{ notice() }}</div> }
+
+  <div class="split">
+    <section class="stack">
+      @if (loading()) {
+        <p class="muted">Loading…</p>
+      } @else if (pending().length === 0) {
+        <article class="card empty">Nothing is waiting. Managers only see requests that are still pending.</article>
+      }
+      @for (request of pending(); track request.id) {
+        <article class="card">
+          <div class="section-title">
+            <h3>{{ fullName(request.employee) }}</h3>
+            <span class="pill pill-pending">{{ statusLabel(request.status) }}</span>
+          </div>
+          <p>{{ request.balance?.name || 'Leave' }} · {{ prettyDate(request.startDate) }} – {{ prettyDate(request.endDate) }}</p>
+          <p class="meta" style="margin: 8px 0 14px;">{{ request.explanation }}</p>
+          <div class="row-actions">
+            <button type="button" class="btn pine" (click)="decide(request, 'APPROVED')">Approve</button>
+            <button type="button" class="btn danger" (click)="decide(request, 'REJECTED')">Reject</button>
+          </div>
+        </article>
+      }
+    </section>
+
+    <div class="stack">
+      <form class="card stack" [formGroup]="form" (ngSubmit)="addPerson()">
+        <div>
+          <p class="eyebrow">Directory</p>
+          <h3>Add a person</h3>
+        </div>
+        <label class="field">First name
+          <input formControlName="firstName" />
+        </label>
+        <label class="field">Last name
+          <input formControlName="lastName" />
+        </label>
+        <label class="field">Manager
+          <select formControlName="managerId">
+            <option value="">No manager</option>
+            @for (user of session.users(); track user.id) {
+              <option [value]="user.id">{{ user.firstName }} {{ user.lastName }}</option>
+            }
+          </select>
+        </label>
+        <button class="btn primary" type="submit">Add person</button>
+      </form>
+
+      <article class="card">
+        @for (user of session.users(); track user.id) {
+          <div class="kv">
+            <div>
+              <b>{{ fullName(user) }}</b>
+              <span class="sub">{{ user.manager ? 'Reports to ' + fullName(user.manager) : 'No manager' }}</span>
+            </div>
+            @if (confirmId() === user.id) {
+              <button type="button" class="btn danger" (click)="removePerson(user.id)">Confirm</button>
+            } @else {
+              <button type="button" class="btn danger" (click)="confirmId.set(user.id)">Remove</button>
+            }
+          </div>
+        }
+      </article>
+    </div>
+  </div>
+</section>

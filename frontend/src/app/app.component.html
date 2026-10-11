@@ -1,6 +1,10 @@
-<app-sidebar></app-sidebar>
-<div class="main-content">
-  <app-header></app-header>
-  <router-outlet></router-outlet>
+<div class="app-shell">
+  <app-sidebar></app-sidebar>
+  <main class="main-content">
+    <app-header></app-header>
+    @if (session.ready() && session.offline()) {
+      <div class="banner error">The API at localhost:8080 is not responding. Start the Spring Boot app, then refresh.</div>
+    }
+    <router-outlet></router-outlet>
+  </main>
 </div>
-

@@ -1,11 +1,11 @@
-<header class="header">
-  <div class="header-content">
-    <div class="left-side">
-      <span>Hello, {{ username }}!</span>
-    </div>
-    <div class="right-side">
-      <span>{{ username }}</span>
-      <span>{{ role }}</span>
-    </div>
+<header class="topbar">
+  <div>
+    <p class="eyebrow">{{ today() }}</p>
+    <p>{{ greeting() }}{{ session.current() ? ', ' + session.current()?.firstName : '' }}.</p>
   </div>
+  @if (session.offline()) {
+    <span class="pill pill-off">Offline</span>
+  } @else if (session.ready()) {
+    <span class="pill pill-live">{{ session.isManager() ? 'Manager' : 'Employee' }} · {{ fullName(session.current()) }}</span>
+  }
 </header>
