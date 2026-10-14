@@ -1,0 +1,143 @@
+Title: Time Off Manager (Employee Leave & Absence Management System)
+
+PROJECT DESCRIPTION & OVERALL FUNCTIONALITY
+The goal of the project is to create an enterprise-grade web application for managing employee time-off, leave allowances, team availability, and project staffing constraints. The application automates the end-to-end leave lifecycle: employees submit requests against specific balances (Vacation, Sick Leave, Personal) with working days calculated automatically (excluding weekends). Requests flow through a formal multi-level approval state machine where managers review submissions from direct reports, and approvals atomically deduct days from allowances using optimistic locking.
+
+Additionally, the system enforces staffing minimums (minEmp) across projects, alerts managers to potential staffing shortages before approving leave, provides official PDF report generation, and includes an interactive Team Absence Calendar to visualize organizational availability.
+
+USER TYPES (ROLES & PERMISSIONS)
+The application defines three distinct roles, separated from the hierarchical reporting line (manager_id):
+
+1. Employee:
+   - Authenticates via email and password (JWT-based session).
+   - Views personal overview: active allowances, remaining days, pending reserved days, and assigned projects.
+   - Submits time-off requests starting from the current date or future dates (working days calculated by the server).
+   - Manages personal requests: can edit or delete requests while PENDING or EDITED; can cancel upcoming APPROVED requests before their start date (automatically restoring days to the balance).
+   - Views the Team Absence Calendar scoped to own assigned projects.
+
+2. Manager:
+   - Inherits all Employee permissions.
+   - Manages assigned projects: creates projects, edits names, adjusts staffing thresholds (minEmp), and assigns/removes project members.
+   - Accesses the dedicated Approvals module: reviews PENDING and EDITED leave requests submitted by direct reports.
+   - Receives staffing coverage warnings before approving requests that would drop a project below its minimum personnel count (minEmp).
+   - Approves requests (atomically deducting balance days) or rejects requests with an optional explanation/comment.
+   - Exports official PDF project staffing and availability reports for Weekly, Monthly, or Yearly windows.
+   - Views team absences across managed projects on the calendar.
+
+3. Administrator:
+   - Holds full system-wide permissions across all resources.
+   - Accesses the dedicated Administration module: manages the user directory (creates users, assigns roles, configures reporting lines, and performs soft-deletes to preserve audit and leave histories).
+   - Manages leave allowances: creates, allocates, adjusts, and deletes balances for any employee.
+   - Approves or rejects requests for any employee, including top-level managers who have no designated manager.
+   - Can submit backdated leave requests on behalf of employees when necessary.
+   - Oversees all company projects, memberships, reports, and calendar schedules.
+
+PAGES & MODULES - EXPLANATIONS, FUNCTIONALITIES & FEATURES
+
+Before Logging In / Authentication:
+• Login Page: Secure authentication using email and password. Generates a stateless signed JWT token for subsequent requests. Includes options for password recovery. (During development, an interactive "Viewing as" session switcher facilitates switching between seeded personas).
+
+After Logging In:
+
+1. Overview (Module 1 - /home):
+   - Executive personal dashboard displaying quick KPI metrics: Total Days Remaining, Pending Requests, and Approved Days.
+   - Leave allowance cards displaying balance type (Vacation, Sick Leave), days left, total annual days, reserved days (locked by pending requests), and interactive progress bars.
+   - Recent requests card summarizing the latest leave requests and their current statuses.
+   - Quick navigation shortcuts to submit a new request or view detailed history.
+
+2. New Request (Module 2 - /new-request):
+   - Leave submission form with allowance category selection.
+   - Start Date and End Date pickers with client and server-side validation:
+     * Enforces end_date >= start_date.
+     * Restricts standard employees from submitting past dates.
+     * Prevents overlapping leave submissions against existing PENDING, EDITED, or APPROVED requests.
+     * Real-time preview of working days (Mon-Fri) calculated on the server.
+     * Submissions are blocked if requested working days exceed available balance (remaining days minus days reserved by pending requests).
+   - Optional explanation textarea for medical or personal justifications.
+   - On submission, requests enter the PENDING state.
+
+3. Request History (Module 3 - /request-history):
+   - Comprehensive tabular log of all personal leave requests with sorting and status filters.
+   - Status badges reflecting the request state machine: PENDING, EDITED, APPROVED, REJECTED, CANCELLED.
+   - Dynamic action buttons governed by the backend state machine:
+     * Edit: Allows modifying start date, end date, balance, and explanation while in PENDING or EDITED status. Editing updates the status to EDITED and routes it back into the manager's review queue.
+     * Cancel: Allowed for PENDING/EDITED requests, or for APPROVED requests before the leave start date (instantly refunds the working days back to the allowance).
+     * Delete: Permanently removes a PENDING/EDITED request from the database. Approved and rejected requests cannot be deleted to preserve compliance records.
+
+4. Projects & Reports (Module 4 - /projects):
+   - Project dashboard displaying active company initiatives, designated project managers, and required staffing thresholds (minEmp).
+   - Project management tools: create new projects, edit project names, update minEmp constraints, and assign/remove project team members.
+   - PDF Report Generator: Generates downloadable, styled PDF reports using OpenPDF. Accurately evaluates actual leave windows overlapping the selected period (Weekly, Monthly, Yearly) and computes real-time employee availability on current date vs. the minEmp requirement.
+
+5. Approvals (Module 5 - /approvals):
+   - Dedicated management queue for Managers and Admins displaying all pending and modified (EDITED) requests submitted by direct reports (or unassigned staff for Admins).
+   - Displays requester details, allowance category, requested dates, working days duration, and employee notes.
+   - Project staffing alert: warns the manager if approving the leave will cause any shared project to fall below minEmp.
+   - Decision controls: "Approve" (atomically deducts working days from balance) or "Reject" (with optional decision comment). Records decision audit metadata (decided_by, decided_at, decision_comment).
+
+6. Administration (Module 6 - /administration):
+   - Restricted to Administrators.
+   - User Management: Add new employees, update account details, set passwords, assign roles (Employee, Manager, Admin), and update manager reporting lines.
+   - Soft-delete capability: Deactivates employee accounts (active = false) without cascading hard deletions, ensuring historical requests, balances, and reports remain intact.
+   - Allowance Management: Create custom leave categories, allocate initial quotas, and adjust annual max_days or current days_left.
+
+7. Team Absence Calendar (Module 7 - Extra Module - /calendar):
+   - Interactive month grid view with previous/next month navigation and project-based filtering.
+   - Displays scheduled absences colored by leave type, with pending leaves visually distinguished (e.g., hatched pattern).
+   - Daily coverage indicators contrasting present team members against project minEmp.
+   - Interactive day view: clicking a day opens a roster of absent employees and direct links to pending approvals for managers.
+
+8. Global Navigation & Layout:
+   - Top Bar: Daily greeting, current date, active user name, role badge, and session logout.
+   - Sidebar: Role-aware navigation displaying only the modules permitted for the logged-in user.
+
+TECHNOLOGIES AND FRAMEWORKS
+- Frontend: HTML5, CSS/SCSS, TypeScript, Angular 19 (Standalone Components, Signals, Reactive Forms, HTTP Interceptors, Functional Route Guards, RxJS).
+- Backend: Java 25, Spring Boot 3.5.6, Spring Security (Stateless JWT, BCrypt password hashing), Spring Data JPA, Hibernate 6.6, Spring Validation, Springdoc OpenAPI (Swagger UI), MapStruct 1.6, OpenPDF 2.0.
+- Database & Persistence: SQL, Flyway Database Migrations (versioned schema baselines and seed scripts), H2 In-Memory Database (development/testing), PostgreSQL (production).
+- Infrastructure & Deployment: Docker (multi-stage build containers for backend JRE and frontend Nginx), Docker Compose, Nginx (reverse proxy and static SPA hosting), AWS EC2 (Single-instance production deployment).
+
+DATABASE STRUCTURE
+
+1. users table:
+   - id: BIGINT, Primary Key, Auto Increment
+   - first_name: VARCHAR(255), Not Null
+   - last_name: VARCHAR(255), Not Null
+   - email: VARCHAR(255), Unique, Not Null
+   - password_hash: VARCHAR(255), Not Null
+   - role: VARCHAR(50), Not Null, Default 'EMPLOYEE' (Values: 'EMPLOYEE', 'MANAGER', 'ADMIN')
+   - manager_id: BIGINT, Foreign Key referencing users(id), Nullable
+   - active: BOOLEAN, Not Null, Default TRUE (Soft-delete support)
+
+2. project table:
+   - id: BIGINT, Primary Key, Auto Increment
+   - name: VARCHAR(255), Not Null
+   - min_emp: BIGINT, Not Null (Minimum required staff on duty)
+   - manager_id: BIGINT, Foreign Key referencing users(id), Nullable
+
+3. balance table:
+   - id: BIGINT, Primary Key, Auto Increment
+   - employee_id: BIGINT, Foreign Key referencing users(id), Not Null
+   - name: VARCHAR(255), Not Null (e.g., 'Vacation', 'Sick Leave', 'Personal')
+   - days_left: BIGINT, Not Null (Remaining available working days)
+   - max_days: BIGINT, Not Null (Total allocated days)
+   - version: BIGINT, Not Null, Default 0 (Optimistic locking version field)
+
+4. request table:
+   - id: BIGINT, Primary Key, Auto Increment
+   - employee_id: BIGINT, Foreign Key referencing users(id), Not Null
+   - balance_id: BIGINT, Foreign Key referencing balance(id), Not Null
+   - start_date: DATE, Not Null
+   - end_date: DATE, Not Null
+   - explanation: VARCHAR(255), Nullable
+   - status: VARCHAR(50), Not Null, Default 'PENDING' (Values: 'PENDING', 'EDITED', 'APPROVED', 'REJECTED', 'CANCELLED')
+   - creation_date: DATE, Not Null
+   - modified_date: DATE, Not Null
+   - decided_by: BIGINT, Foreign Key referencing users(id), Nullable
+   - decided_at: TIMESTAMP, Nullable
+   - decision_comment: VARCHAR(255), Nullable
+
+5. project_list table (Many-to-Many Join Table between project and users):
+   - project_id: BIGINT, Foreign Key referencing project(id), Not Null
+   - employee_id: BIGINT, Foreign Key referencing users(id), Not Null
+   - PRIMARY KEY: Composite (project_id, employee_id)
