@@ -3,7 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
 import { SessionService } from '../../services/session.service';
 import { Balance } from '../../models';
-import { errorText, inclusiveDays, todayIso } from '../../format';
+import { errorText, inclusiveDays } from '../../format';
 
 @Component({
   selector: 'app-new-request',
@@ -79,17 +79,13 @@ export class NewRequestComponent {
     if (!employeeId || this.form.invalid) return;
 
     const value = this.form.getRawValue();
-    const today = todayIso();
     this.saving.set(true);
     this.api.createRequest({
-      employee: { id: employeeId },
-      balance: { id: Number(value.balanceId) },
-      status: 'PENDING',
+      employeeId,
+      balanceId: Number(value.balanceId),
       startDate: value.startDate,
       endDate: value.endDate,
       explanation: value.explanation.trim(),
-      creationDate: today,
-      modifiedDate: today,
     }).subscribe({
       next: () => {
         this.saving.set(false);

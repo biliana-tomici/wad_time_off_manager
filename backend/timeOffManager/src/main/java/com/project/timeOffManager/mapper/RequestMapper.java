@@ -2,24 +2,22 @@ package com.project.timeOffManager.mapper;
 
 import com.project.timeOffManager.dto.RequestDto;
 import com.project.timeOffManager.entity.Request;
-import org.mapstruct.BeanMapping;
+import com.project.timeOffManager.entity.User;
 import org.mapstruct.Mapper;
-import org.mapstruct.MappingTarget;
-import org.mapstruct.NullValuePropertyMappingStrategy;
+import org.mapstruct.Mapping;
 
-import java.util.List;
-
-@Mapper(componentModel = "spring", uses = {UserMapper.class, BalanceMapper.class})
+@Mapper(componentModel = "spring")
 public interface RequestMapper {
 
-    Request toEntity(RequestDto requestDto);
-
+    @Mapping(target = "employeeId", source = "employee.id")
+    @Mapping(target = "employeeName", source = "employee")
+    @Mapping(target = "balanceId", source = "balance.id")
+    @Mapping(target = "balanceName", source = "balance.name")
+    @Mapping(target = "decidedById", source = "decidedBy.id")
+    @Mapping(target = "decidedByName", source = "decidedBy")
     RequestDto toDto(Request request);
 
-    List<RequestDto> toDtoList(List<Request> requests);
-
-    List<Request> toEntityList(List<RequestDto> requestDtos);
-
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    void updateRequestFromDto(RequestDto requestDto, @MappingTarget Request request);
+    default String fullName(User user) {
+        return user == null ? null : user.getFirstName() + " " + user.getLastName();
+    }
 }

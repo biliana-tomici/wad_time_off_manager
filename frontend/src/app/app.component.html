@@ -3,7 +3,7 @@
   <main class="main-content">
     <app-header></app-header>
     @if (session.ready() && session.offline()) {
-      <div class="banner error">The API at localhost:8080 is not responding. Start the Spring Boot app, then refresh.</div>
+      <div class="banner error">The backend API is not responding. Please start the backend service, then refresh.</div>
     }
     <router-outlet></router-outlet>
   </main>

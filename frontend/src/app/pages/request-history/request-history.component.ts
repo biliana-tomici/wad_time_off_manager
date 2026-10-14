@@ -84,7 +84,7 @@ export class RequestHistoryComponent {
     this.editForm.setValue({
       startDate: request.startDate,
       endDate: request.endDate,
-      balanceId: String(request.balance?.id ?? ''),
+      balanceId: String(request.balanceId ?? ''),
       explanation: request.explanation ?? '',
     });
   }
@@ -99,7 +99,7 @@ export class RequestHistoryComponent {
       startDate: value.startDate,
       endDate: value.endDate,
       explanation: value.explanation,
-      balance: { id: Number(value.balanceId) },
+      balanceId: Number(value.balanceId),
     }).subscribe({
       next: () => {
         this.notice.set('Request updated. Status is now Edited.');

@@ -3,6 +3,8 @@ package com.project.timeOffManager.entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
+import com.project.timeOffManager.enums.Role;
+
 import java.util.List;
 
 @Entity
@@ -17,10 +19,11 @@ public class User {
 
     private String lastName;
 
-    @ManyToMany
-    @JoinTable(name = "project_list",
-            joinColumns = @JoinColumn(name = "employee_id"),
-            inverseJoinColumns = @JoinColumn(name = "project_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role = Role.EMPLOYEE;
+
+    @ManyToMany(mappedBy = "employees")
     private List<Project> projects;
 
     @ManyToOne
@@ -38,9 +41,14 @@ public class User {
     }
 
     public User(String firstName, String lastName, User manager) {
+        this(firstName, lastName, manager, Role.EMPLOYEE);
+    }
+
+    public User(String firstName, String lastName, User manager, Role role) {
         this.firstName = firstName;
         this.lastName = lastName;
         this.manager = manager;
+        this.role = role != null ? role : Role.EMPLOYEE;
     }
 
     @Override
@@ -90,5 +98,24 @@ public class User {
         this.manager = manager;
     }
 
+    public Role getRole() {
+        return role;
+    }
 
+    public void setRole(Role role) {
+        this.role = role;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        User user = (User) o;
+        return id != null && id.equals(user.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

@@ -86,7 +86,7 @@ export class HomeComponent {
     }
     const value = this.allowanceForm.getRawValue();
     this.api.createBalance({
-      employee: { id: employeeId },
+      employeeId,
       name: value.name,
       daysLeft: Number(value.daysLeft),
       maxDays: Number(value.maxDays),

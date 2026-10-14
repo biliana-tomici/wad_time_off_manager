@@ -2,16 +2,15 @@ server:
   port: 8080
 
 spring:
-  datasource:
-    url: jdbc:h2:mem:testdb
-    username: sa
-    password:
+  profiles:
+    default: local
 
   jpa:
+    open-in-view: false
     hibernate:
-      ddl-auto: create
-    defer-datasource-initialization: true
+      ddl-auto: validate
 
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+

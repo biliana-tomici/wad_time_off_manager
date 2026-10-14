@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { ApiService } from './api.service';
-import { AppUser } from '../models';
+import { AppUser, Role } from '../models';
 
 const STORAGE_KEY = 'tom-user-id';
 
@@ -13,9 +13,15 @@ export class SessionService {
   readonly ready = signal(false);
   readonly offline = signal(false);
 
-  readonly isManager = computed(() => {
-    const id = this.current()?.id;
-    return !!id && this.users().some((user) => user.manager?.id === id);
+  readonly role = computed<Role | null>(() => this.current()?.role ?? null);
+  readonly isAdmin = computed(() => this.role() === 'ADMIN');
+  readonly isManager = computed(() => this.role() === 'MANAGER' || this.role() === 'ADMIN');
+  readonly isEmployee = computed(() => this.role() === 'EMPLOYEE');
+  readonly roleLabel = computed(() => {
+    const r = this.role();
+    if (r === 'ADMIN') return 'Admin';
+    if (r === 'MANAGER') return 'Manager';
+    return 'Employee';
   });
 
   readonly team = computed(() => {

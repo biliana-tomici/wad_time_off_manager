@@ -6,6 +6,6 @@
   @if (session.offline()) {
     <span class="pill pill-off">Offline</span>
   } @else if (session.ready()) {
-    <span class="pill pill-live">{{ session.isManager() ? 'Manager' : 'Employee' }} · {{ fullName(session.current()) }}</span>
+    <span class="pill pill-live">{{ session.roleLabel() }} · {{ fullName(session.current()) }}</span>
   }
 </header>

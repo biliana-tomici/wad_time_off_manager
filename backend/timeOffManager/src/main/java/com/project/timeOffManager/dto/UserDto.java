@@ -1,7 +1,7 @@
 package com.project.timeOffManager.dto;
 
-import com.project.timeOffManager.entity.Balance;
 import com.project.timeOffManager.entity.User;
+import com.project.timeOffManager.enums.Role;
 
 import java.io.Serializable;
 import java.util.List;
@@ -12,8 +12,7 @@ import java.util.List;
 public record UserDto(Long id,
                       String firstName,
                       String lastName,
+                      Role role,
                       List<ProjectDto> projects,
-                      ManagerDto manager,
-                      List<BalanceDto> balances,
-                      List<RequestDto> requests) implements Serializable {
+                      ManagerDto manager) implements Serializable {
 }

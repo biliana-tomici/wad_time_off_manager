@@ -14,7 +14,7 @@ public class Project {
     private Long minEmp;
     private String name;
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "manager_id")
     private User manager;
 
@@ -72,7 +72,12 @@ public class Project {
         this.manager = manager;
     }
 
+    public List<User> getEmployees() {
+        return employees;
+    }
+
     public void setEmployees(List<User> employees) {
         this.employees = employees;
     }
 }
+

@@ -5,11 +5,14 @@ import com.lowagie.text.Paragraph;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfTable;
 import com.lowagie.text.pdf.PdfWriter;
-import com.project.timeOffManager.dto.ProjectDto;
 import com.project.timeOffManager.entity.Request;
 import com.project.timeOffManager.entity.User;
 import com.project.timeOffManager.enums.Status;
 import com.project.timeOffManager.enums.TimePeriod;
+import com.project.timeOffManager.entity.Project;
+import com.project.timeOffManager.exception.ResourceNotFoundException;
+import com.project.timeOffManager.repository.ProjectRepository;
+import com.project.timeOffManager.security.AuthorizationService;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
@@ -24,37 +27,41 @@ public class ReportService {
     private final RequestService requestService;
     private final ProjectService projectService;
     private final UserService userService;
+    private final ProjectRepository projectRepository;
+    private final AuthorizationService authorizationService;
 
-    public ReportService(RequestService requestService, ProjectService projectService, UserService userService) {
+    public ReportService(RequestService requestService,
+                         ProjectService projectService,
+                         UserService userService,
+                         ProjectRepository projectRepository,
+                         AuthorizationService authorizationService) {
         this.requestService = requestService;
         this.projectService = projectService;
         this.userService = userService;
+        this.projectRepository = projectRepository;
+        this.authorizationService = authorizationService;
     }
 
     public byte[] getProjectReportPdf(Long projectId, TimePeriod timePeriod) {
-
-        ProjectDto project = projectService.getProjectById(projectId);
-
+        Project project = projectRepository.findProjectById(projectId);
         if (project == null) {
-            return null;
+            throw new ResourceNotFoundException("Project not found with id: " + projectId);
         }
+        authorizationService.checkCanDownloadReport(project);
 
         List<User> employees = userService.getUsersByProjectId(projectId);
 
+        LocalDate today = LocalDate.now();
         List<Request> requests = requestService.getRequestsByUsersAndTimePeriod(employees, timePeriod);
+        List<Request> approvedCoveringToday = requestService.getApprovedRequestsCoveringDate(employees, today);
+
+        java.util.Set<Long> absentEmployeeIds = approvedCoveringToday.stream()
+                .map(r -> r.getEmployee().getId())
+                .collect(java.util.stream.Collectors.toSet());
 
         Map<User, Boolean> availableEmployees = new HashMap<>();
-        LocalDate today = LocalDate.now();
-
         for (User user : employees) {
-            boolean isAvailable = requests.stream()
-                    .filter(request -> request.getEmployee().getId().equals(user.getId()))
-                    .noneMatch(request ->
-                            (request.getStartDate().isBefore(today) || request.getStartDate().isEqual(today)) &&
-                                    (request.getEndDate().isAfter(today) || request.getEndDate().isEqual(today)) &&
-                                    request.getStatus().equals(Status.APPROVED)
-                    );
-
+            boolean isAvailable = !absentEmployeeIds.contains(user.getId());
             availableEmployees.put(user, isAvailable);
         }
 
@@ -65,7 +72,7 @@ public class ReportService {
             PdfWriter.getInstance(document, outputStream);
             document.open();
 
-            document.add(new Paragraph("Project report for Project: " + project.name() + " (ID: " + project.id() + ")"));
+            document.add(new Paragraph("Project report for Project: " + project.getName() + " (ID: " + project.getId() + ")"));
             document.add(new Paragraph("Total Employees: " + employees.size()));
             document.add(new Paragraph("Total available employees as of today: " + availableEmployees.values().stream().filter(Boolean::booleanValue).count()));
             document.add(new Paragraph(" "));

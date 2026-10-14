@@ -10,7 +10,7 @@
   </div>
 
   <nav class="sidebar-nav">
-    @for (item of items; track item.link) {
+    @for (item of items(); track item.link) {
       <a class="nav-link" [routerLink]="item.link" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.exact }">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           @switch (item.icon) {
@@ -58,7 +58,7 @@
       <span class="avatar">{{ initials(session.current()) }}</span>
       <div>
         <strong>{{ fullName(session.current()) }}</strong>
-        <small>{{ session.isManager() ? 'Manager' : 'Employee' }}</small>
+        <small>{{ session.roleLabel() }}</small>
       </div>
     </div>
   </div>

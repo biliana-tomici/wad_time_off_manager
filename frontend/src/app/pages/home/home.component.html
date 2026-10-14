@@ -83,7 +83,7 @@
         @for (request of recent(); track request.id) {
           <div class="kv">
             <div>
-              <b>{{ request.balance?.name || 'Leave' }}</b>
+              <b>{{ request.balanceName || 'Leave' }}</b>
               <span class="sub">{{ prettyDate(request.startDate) }} – {{ prettyDate(request.endDate) }} · {{ inclusiveDays(request.startDate, request.endDate) }} days</span>
             </div>
             <span class="pill pill-{{ request.status.toLowerCase() }}">{{ statusLabel(request.status) }}</span>

@@ -82,7 +82,7 @@ export class ProjectsComponent {
     this.api.createProject({
       name: value.name.trim(),
       minEmp: Number(value.minEmp),
-      manager: { id: Number(value.managerId) },
+      managerId: Number(value.managerId),
     }).subscribe({
       next: () => {
         this.notice.set('Project created.');
@@ -97,11 +97,7 @@ export class ProjectsComponent {
   save(project: Project): void {
     const name = this.draftName(project).trim();
     if (!name) return;
-    this.api.updateProject(project.id, {
-      name,
-      minEmp: project.minEmp,
-      manager: project.manager?.id ? { id: project.manager.id } : null,
-    }).subscribe({
+    this.api.updateProject(project.id, { name }).subscribe({
       next: () => {
         this.notice.set('Project saved.');
         this.load();

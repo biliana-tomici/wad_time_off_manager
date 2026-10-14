@@ -41,7 +41,7 @@
                 {{ prettyDate(request.startDate) }} – {{ prettyDate(request.endDate) }}
                 <span class="sub">{{ inclusiveDays(request.startDate, request.endDate) }} days</span>
               </td>
-              <td>{{ request.balance?.name || '—' }}</td>
+              <td>{{ request.balanceName || '—' }}</td>
               <td>{{ request.explanation }}</td>
               <td><span class="pill pill-{{ request.status.toLowerCase() }}">{{ statusLabel(request.status) }}</span></td>
               <td>

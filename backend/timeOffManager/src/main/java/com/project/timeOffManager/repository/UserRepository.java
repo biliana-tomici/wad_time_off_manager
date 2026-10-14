@@ -12,6 +12,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     User findCustomerById(Long customerId);
 
+    List<User> findByManager_Id(Long managerId);
+
     @Query("SELECT u FROM User u JOIN u.projects p WHERE p.id = :projectId")
     List<User> findUsersByProjectId(Long projectId);
 }

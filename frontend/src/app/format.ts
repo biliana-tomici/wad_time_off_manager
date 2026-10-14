@@ -39,13 +39,6 @@ export function inclusiveDays(start?: string | null, end?: string | null): numbe
   return Math.round((endMs - startMs) / 86_400_000) + 1;
 }
 
-export function todayIso(): string {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${now.getFullYear()}-${month}-${day}`;
-}
-
 export function statusLabel(status?: string | null): string {
   switch (status) {
     case 'PENDING':

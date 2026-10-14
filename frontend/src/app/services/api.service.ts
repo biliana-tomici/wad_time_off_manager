@@ -1,14 +1,13 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, throwError } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { API_BASE } from '../api-base';
 import { AppUser, Balance, Page, Project, Status, TimePeriod, TimeRequest } from '../models';
 
 function asList<T>(source: Observable<Page<T>>): Observable<T[]> {
   return source.pipe(
-    map((page) => page?.content ?? []),
-    catchError((err) => (err?.status === 404 ? of([]) : throwError(() => err)))
+    map((page) => page?.content ?? [])
   );
 }
 
@@ -17,7 +16,7 @@ export class ApiService {
   private readonly http = inject(HttpClient);
 
   users(): Observable<AppUser[]> {
-    return this.http.get<AppUser[]>(`${API_BASE}/api/customer`);
+    return this.http.get<AppUser[]>(`${API_BASE}/api/users`);
   }
 
   balances(employeeId: number): Observable<Balance[]> {
@@ -90,10 +89,10 @@ export class ApiService {
   }
 
   createUser(body: unknown): Observable<AppUser> {
-    return this.http.post<AppUser>(`${API_BASE}/api/customer`, body);
+    return this.http.post<AppUser>(`${API_BASE}/api/users`, body);
   }
 
   deleteUser(id: number): Observable<void> {
-    return this.http.delete<void>(`${API_BASE}/api/customer/${id}`);
+    return this.http.delete<void>(`${API_BASE}/api/users/${id}`);
   }
 }

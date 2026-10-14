@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,7 +27,7 @@ public class ReportController {
     @ApiResponse(responseCode = "200", description = "Report generated successfully")
     @ApiResponse(responseCode = "400", description = "Invalid request data")
     @ApiResponse(responseCode = "404", description = "Project not found")
-    @RequestMapping("/project/{projectId}/pdf")
+    @GetMapping("/project/{projectId}/pdf")
     public ResponseEntity<byte[]> generateProjectReport(@Parameter(description = "ID of the project to generate a report for", required = true)
                                                         @PathVariable("projectId") Long projectId,
                                                         @Parameter(description = "Time period", required = true)

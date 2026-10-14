@@ -72,12 +72,12 @@ export class ManagementComponent {
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
     const value = this.form.getRawValue();
-    const body: { firstName: string; lastName: string; manager?: { id: number } } = {
+    const body: { firstName: string; lastName: string; managerId?: number } = {
       firstName: value.firstName.trim(),
       lastName: value.lastName.trim(),
     };
     if (value.managerId) {
-      body.manager = { id: Number(value.managerId) };
+      body.managerId = Number(value.managerId);
     }
     this.api.createUser(body).subscribe({
       next: () => {
