@@ -369,6 +369,9 @@ public class RequestService {
 
             long maxAbsent = 1;
             for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
+                if (d.getDayOfWeek() == java.time.DayOfWeek.SATURDAY || d.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
+                    continue;
+                }
                 final LocalDate day = d;
                 long otherAbsent = overlappingApproved.stream()
                         .filter(r -> !r.getStartDate().isAfter(day) && !r.getEndDate().isBefore(day))

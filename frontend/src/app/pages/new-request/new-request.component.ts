@@ -33,7 +33,13 @@ export class NewRequestComponent {
     validators: (group) => {
       const start = group.get('startDate')?.value;
       const end = group.get('endDate')?.value;
-      return start && end && end < start ? { range: true } : null;
+      if (start && end && end < start) {
+        return { range: true };
+      }
+      if (start && end && workingDays(start, end) === 0) {
+        return { weekendOnly: true };
+      }
+      return null;
     }
   });
 

@@ -28,6 +28,7 @@ export class SidebarComponent {
   readonly allItems: NavItem[] = [
     { label: 'Overview', link: '/home', exact: true, icon: 'overview' },
     { label: 'New Request', link: '/new-request', exact: false, icon: 'plus' },
+    { label: 'Team Calendar', link: '/calendar', exact: false, icon: 'calendar' },
     { label: 'Request History', link: '/request-history', exact: false, icon: 'history' },
     { label: 'Projects', link: '/projects', exact: false, icon: 'projects' },
     { label: 'Approvals', link: '/approvals', exact: false, icon: 'approvals', roles: ['MANAGER', 'ADMIN'] },

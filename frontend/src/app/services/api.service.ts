@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { API_BASE } from '../api-base';
-import { AppUser, Balance, Page, Project, Status, TimePeriod, TimeRequest } from '../models';
+import { AppUser, Balance, CalendarResponse, Page, Project, Status, TimePeriod, TimeRequest } from '../models';
 
 function asList<T>(source: Observable<Page<T>>): Observable<T[]> {
   return source.pipe(
@@ -130,5 +130,13 @@ export class ApiService {
 
   deleteUser(id: number): Observable<void> {
     return this.http.delete<void>(`${API_BASE}/api/users/${id}`);
+  }
+
+  calendar(from?: string, to?: string, projectId?: number): Observable<CalendarResponse> {
+    const params: Record<string, string> = {};
+    if (from) params['from'] = from;
+    if (to) params['to'] = to;
+    if (projectId) params['projectId'] = String(projectId);
+    return this.http.get<CalendarResponse>(`${API_BASE}/api/calendar`, { params });
   }
 }

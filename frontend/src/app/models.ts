@@ -61,3 +61,34 @@ export interface Page<T> {
   number?: number;
   size?: number;
 }
+
+export interface CalendarAbsence {
+  requestId: number;
+  employeeId: number;
+  employeeName: string;
+  balanceId?: number | null;
+  balanceName?: string | null;
+  status: Status;
+  startDate: string;
+  endDate: string;
+  workingDays?: number | null;
+  explanation?: string | null;
+  projectIds?: number[] | null;
+}
+
+export interface CalendarProjectCoverage {
+  date: string;
+  projectId: number;
+  projectName: string;
+  minEmp: number;
+  totalMembers: number;
+  availableCount: number;
+  understaffed: boolean;
+}
+
+export interface CalendarResponse {
+  from: string;
+  to: string;
+  absences: CalendarAbsence[];
+  coverages: CalendarProjectCoverage[];
+}

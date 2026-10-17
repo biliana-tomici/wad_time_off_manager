@@ -61,6 +61,9 @@ class TimeOffManagerApplicationTests {
 	@Autowired
 	private ReportService reportService;
 
+	@Autowired
+	private com.project.timeOffManager.service.CalendarService calendarService;
+
 	private void asUser(long userId, Runnable action) {
 		MockHttpServletRequest request = new MockHttpServletRequest();
 		request.addHeader("X-User-Id", String.valueOf(userId));
@@ -80,7 +83,7 @@ class TimeOffManagerApplicationTests {
 	void testGetAllUsers_DoesNotThrowLazyInitializationException() {
 		List<UserDto> users = userService.getAllUsers();
 		assertNotNull(users);
-		assertEquals(6, users.size());
+		assertEquals(10, users.size());
 		// Verify project lists can be read
 		for (UserDto user : users) {
 			assertNotNull(user.projects());
@@ -174,7 +177,7 @@ class TimeOffManagerApplicationTests {
 
 			// 5. requested days > remaining - pending
 			BusinessRuleException quotaEx = assertThrows(BusinessRuleException.class, () ->
-					requestService.createRequest(new CreateRequestCommand(2L, 7L, futureMonday.plusDays(14), futureMonday.plusDays(30), "Too long")));
+					requestService.createRequest(new CreateRequestCommand(2L, 7L, futureMonday.plusDays(14), futureMonday.plusDays(55), "Too long")));
 			assertTrue(quotaEx.getMessage().contains("Insufficient balance days"));
 		});
 
@@ -219,10 +222,10 @@ class TimeOffManagerApplicationTests {
 			RequestDto approved = requestService.approveRequest(reqId, "Looks good");
 			assertEquals(Status.APPROVED, approved.status());
 			assertEquals("Looks good", approved.decisionComment());
-			assertEquals(12L, balanceService.getBalanceById(7L).daysLeft());
+			assertEquals(25L, balanceService.getBalanceById(7L).daysLeft());
 		});
 
-		// Bob cannot edit or delete an APPROVED request (409 BusinessRuleException), but can cancel it before start date to restore days (12 -> 15)
+		// Bob cannot edit or delete an APPROVED request (409 BusinessRuleException), but can cancel it before start date to restore days (25 -> 28)
 		asUser(2L, () -> {
 			assertThrows(BusinessRuleException.class, () ->
 					requestService.updateRequest(new UpdateRequestCommand(null, null, null, "Try edit approved"), reqId));
@@ -231,7 +234,7 @@ class TimeOffManagerApplicationTests {
 
 			RequestDto cancelled = requestService.cancelRequest(reqId);
 			assertEquals(Status.CANCELLED, cancelled.status());
-			assertEquals(15L, balanceService.getBalanceById(7L).daysLeft());
+			assertEquals(28L, balanceService.getBalanceById(7L).daysLeft());
 
 			// Cannot cancel an already CANCELLED request
 			assertThrows(BusinessRuleException.class, () ->
@@ -349,6 +352,49 @@ class TimeOffManagerApplicationTests {
 			assertFalse(userService.getAllUsers().stream().anyMatch(u -> u.id().equals(2L)));
 			// Historical requests of Bob remain accessible to Admin
 			assertFalse(requestService.getRequestsByEmployeeId(2L, PageRequest.of(0, 50)).isEmpty());
+		});
+	}
+
+	@Test
+	void module7_teamAbsenceCalendar_roleScopingAndCoverage() {
+		LocalDate today = LocalDate.now();
+		LocalDate monthStart = today.withDayOfMonth(1);
+		LocalDate monthEnd = monthStart.plusMonths(1).withDayOfMonth(1).minusDays(1);
+
+		// 4.1 Role scoping: Eve (EMPLOYEE, id=5) only has access to assigned projects (Project 1 and 4)
+		asUser(5L, () -> {
+			// Accessing unassigned Project Beta (id=2) -> 403 AccessDeniedException
+			assertThrows(AccessDeniedException.class, () ->
+					calendarService.getCalendar(monthStart, monthEnd, 2L));
+
+			// Accessing assigned Project Delta (id=4) -> 200 OK
+			com.project.timeOffManager.dto.CalendarResponseDto deltaCal =
+					calendarService.getCalendar(monthStart, monthEnd, 4L);
+			assertNotNull(deltaCal);
+			assertFalse(deltaCal.coverages().isEmpty());
+		});
+
+		// 4.1 Admin (Alice, id=1) has full visibility
+		asUser(1L, () -> {
+			com.project.timeOffManager.dto.CalendarResponseDto adminCal =
+					calendarService.getCalendar(monthStart, monthEnd, null);
+			assertNotNull(adminCal);
+
+			// Both APPROVED (e.g. Charlie #2 covering today) and PENDING (e.g. Bob #1) absences are returned
+			assertTrue(adminCal.absences().stream().anyMatch(a -> a.status() == Status.APPROVED));
+			assertTrue(adminCal.absences().stream().anyMatch(a -> a.status() == Status.PENDING));
+
+			// 4.3 Daily coverage: Project Beta has minEmp=3 and 3 members.
+			// Charlie (id=3) has an approved request covering weekdays around today -> available=2 < 3 -> understaffed=true on working days
+			com.project.timeOffManager.dto.CalendarResponseDto betaCal =
+					calendarService.getCalendar(monthStart, monthEnd, 2L);
+			assertTrue(betaCal.coverages().stream().anyMatch(c ->
+					c.projectId().equals(2L) && c.understaffed() && c.availableCount() == 2));
+
+			// System rule: Weekends are non-working days and are never marked understaffed
+			assertTrue(betaCal.coverages().stream()
+					.filter(c -> c.date().getDayOfWeek() == DayOfWeek.SATURDAY || c.date().getDayOfWeek() == DayOfWeek.SUNDAY)
+					.noneMatch(com.project.timeOffManager.dto.CalendarProjectCoverageDto::understaffed));
 		});
 	}
 }

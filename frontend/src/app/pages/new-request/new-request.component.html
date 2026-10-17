@@ -32,6 +32,9 @@
       @if (form.hasError('range') && form.touched) {
         <p class="hint wide">The end date has to be on or after the start date.</p>
       }
+      @if (form.hasError('weekendOnly') && form.touched) {
+        <p class="hint wide" style="color: var(--danger); font-weight: 600;">The selected dates fall on a weekend. Weekends are non-working days and are not counted towards time-off.</p>
+      }
       @if (balances().length === 0) {
         <p class="hint wide">This person has no allowance yet. An administrator must assign one.</p>
       }

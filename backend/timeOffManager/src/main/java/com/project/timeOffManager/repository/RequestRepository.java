@@ -35,6 +35,12 @@ public interface RequestRepository extends JpaRepository<Request, Long> {
                                                 @Param("windowStart") LocalDate windowStart,
                                                 @Param("windowEnd") LocalDate windowEnd);
 
+    @Query("SELECT r FROM Request r WHERE r.employee.id IN :employeeIds AND r.status IN :statuses AND r.startDate <= :windowEnd AND r.endDate >= :windowStart")
+    List<Request> findRequestsOverlappingWindowWithStatuses(@Param("employeeIds") List<Long> employeeIds,
+                                                           @Param("statuses") List<Status> statuses,
+                                                           @Param("windowStart") LocalDate windowStart,
+                                                           @Param("windowEnd") LocalDate windowEnd);
+
     @Query("SELECT r FROM Request r WHERE r.employee.id IN :employeeIds AND r.status = :status AND r.startDate <= :date AND r.endDate >= :date")
     List<Request> findApprovedRequestsCoveringDate(@Param("employeeIds") List<Long> employeeIds,
                                                    @Param("status") Status status,

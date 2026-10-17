@@ -5,12 +5,14 @@ import { RequestHistoryComponent } from './pages/request-history/request-history
 import { ProjectsComponent } from './pages/projects/projects.component';
 import { ApprovalsComponent } from './pages/approvals/approvals.component';
 import { AdministrationComponent } from './pages/administration/administration.component';
+import { CalendarComponent } from './pages/calendar/calendar.component';
 import { roleGuard } from './guards/role.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'home', pathMatch: 'full' },
   { path: 'home', component: HomeComponent },
   { path: 'new-request', component: NewRequestComponent },
+  { path: 'calendar', component: CalendarComponent },
   { path: 'projects', component: ProjectsComponent },
   { path: 'request-history', component: RequestHistoryComponent },
   { path: 'approvals', component: ApprovalsComponent, canActivate: [roleGuard(['MANAGER', 'ADMIN'])] },
