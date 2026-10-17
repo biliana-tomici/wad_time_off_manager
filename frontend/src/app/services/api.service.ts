@@ -31,9 +31,13 @@ export class ApiService {
     }));
   }
 
-  pending(managerId: number): Observable<TimeRequest[]> {
+  pending(managerId: number, includeUnassigned?: boolean): Observable<TimeRequest[]> {
+    const params: Record<string, string> = { page: '0', size: '100' };
+    if (includeUnassigned !== undefined) {
+      params['includeUnassigned'] = String(includeUnassigned);
+    }
     return asList(this.http.get<Page<TimeRequest>>(`${API_BASE}/api/request/pending/${managerId}`, {
-      params: { page: '0', size: '100' }
+      params
     }));
   }
 
@@ -51,6 +55,18 @@ export class ApiService {
     });
   }
 
+  cancelRequest(id: number): Observable<TimeRequest> {
+    return this.http.post<TimeRequest>(`${API_BASE}/api/request/${id}/cancel`, null);
+  }
+
+  approveRequest(id: number, comment?: string): Observable<TimeRequest> {
+    return this.http.post<TimeRequest>(`${API_BASE}/api/request/${id}/approve`, comment ? { comment } : null);
+  }
+
+  rejectRequest(id: number, comment?: string): Observable<TimeRequest> {
+    return this.http.post<TimeRequest>(`${API_BASE}/api/request/${id}/reject`, comment ? { comment } : null);
+  }
+
   deleteRequest(id: number): Observable<void> {
     return this.http.delete<void>(`${API_BASE}/api/request/${id}`);
   }
@@ -65,12 +81,24 @@ export class ApiService {
     return this.http.post<Project>(`${API_BASE}/api/projects`, body);
   }
 
-  updateProject(id: number, body: unknown): Observable<Project> {
+  updateProject(id: number, body: { name?: string; minEmp?: number; managerId?: number }): Observable<Project> {
     return this.http.put<Project>(`${API_BASE}/api/projects/${id}`, body);
   }
 
   deleteProject(id: number): Observable<void> {
     return this.http.delete<void>(`${API_BASE}/api/projects/${id}`);
+  }
+
+  projectMembers(projectId: number): Observable<AppUser[]> {
+    return this.http.get<AppUser[]>(`${API_BASE}/api/projects/${projectId}/members`);
+  }
+
+  addProjectMember(projectId: number, employeeId: number): Observable<void> {
+    return this.http.post<void>(`${API_BASE}/api/projects/${projectId}/members/${employeeId}`, null);
+  }
+
+  removeProjectMember(projectId: number, employeeId: number): Observable<void> {
+    return this.http.delete<void>(`${API_BASE}/api/projects/${projectId}/members/${employeeId}`);
   }
 
   report(projectId: number, timePeriod: TimePeriod): Observable<Blob> {
@@ -84,12 +112,20 @@ export class ApiService {
     return this.http.post<Balance>(`${API_BASE}/api/balance`, body);
   }
 
+  updateBalance(id: number, body: { name?: string; daysLeft?: number; maxDays?: number }): Observable<Balance> {
+    return this.http.put<Balance>(`${API_BASE}/api/balance/${id}`, body);
+  }
+
   deleteBalance(id: number): Observable<void> {
     return this.http.delete<void>(`${API_BASE}/api/balance/${id}`);
   }
 
   createUser(body: unknown): Observable<AppUser> {
     return this.http.post<AppUser>(`${API_BASE}/api/users`, body);
+  }
+
+  updateUser(id: number, body: unknown): Observable<AppUser> {
+    return this.http.put<AppUser>(`${API_BASE}/api/users/${id}`, body);
   }
 
   deleteUser(id: number): Observable<void> {

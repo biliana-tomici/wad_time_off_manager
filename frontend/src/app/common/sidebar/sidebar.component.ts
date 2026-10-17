@@ -30,7 +30,8 @@ export class SidebarComponent {
     { label: 'New Request', link: '/new-request', exact: false, icon: 'plus' },
     { label: 'Request History', link: '/request-history', exact: false, icon: 'history' },
     { label: 'Projects', link: '/projects', exact: false, icon: 'projects' },
-    { label: 'Management', link: '/management', exact: false, icon: 'team', roles: ['MANAGER', 'ADMIN'] },
+    { label: 'Approvals', link: '/approvals', exact: false, icon: 'approvals', roles: ['MANAGER', 'ADMIN'] },
+    { label: 'Administration', link: '/administration', exact: false, icon: 'admin', roles: ['ADMIN'] },
   ];
 
   readonly items = computed(() => {
@@ -42,7 +43,9 @@ export class SidebarComponent {
     const id = Number((event.target as HTMLSelectElement).value);
     this.session.select(id);
     const role = this.session.role();
-    if (this.router.url.startsWith('/management') && role === 'EMPLOYEE') {
+    if ((this.router.url.startsWith('/approvals') || this.router.url.startsWith('/management')) && role === 'EMPLOYEE') {
+      this.router.navigate(['/home']);
+    } else if (this.router.url.startsWith('/administration') && role !== 'ADMIN') {
       this.router.navigate(['/home']);
     }
   }

@@ -43,6 +43,7 @@ export interface TimeRequest {
   status: Status;
   startDate: string;
   endDate: string;
+  workingDays?: number | null;
   explanation: string;
   creationDate?: string | null;
   modifiedDate?: string | null;
@@ -50,6 +51,7 @@ export interface TimeRequest {
   decidedByName?: string | null;
   decidedAt?: string | null;
   decisionComment?: string | null;
+  coverageWarnings?: string[] | null;
 }
 
 export interface Page<T> {

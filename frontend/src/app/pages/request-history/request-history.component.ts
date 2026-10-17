@@ -3,7 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
 import { SessionService } from '../../services/session.service';
 import { Balance, Status, TimeRequest } from '../../models';
-import { errorText, inclusiveDays, prettyDate, statusLabel } from '../../format';
+import { errorText, prettyDate, statusLabel, workingDays } from '../../format';
 
 @Component({
   selector: 'app-request-history',
@@ -27,7 +27,7 @@ export class RequestHistoryComponent {
   readonly loading = signal(false);
   readonly prettyDate = prettyDate;
   readonly statusLabel = statusLabel;
-  readonly inclusiveDays = inclusiveDays;
+  readonly workingDays = workingDays;
   readonly filters: Array<'ALL' | Status> = ['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'EDITED', 'CANCELLED'];
 
   readonly visible = computed(() => {
@@ -40,13 +40,14 @@ export class RequestHistoryComponent {
     startDate: ['', Validators.required],
     endDate: ['', Validators.required],
     balanceId: ['', Validators.required],
-    explanation: ['', Validators.required],
+    explanation: ['', [Validators.maxLength(255)]],
   });
 
   constructor() {
     effect(() => {
       const id = this.session.current()?.id;
       this.editingId.set(null);
+      this.confirmId.set(null);
       if (!id) {
         this.requests.set([]);
         return;
@@ -75,7 +76,29 @@ export class RequestHistoryComponent {
     });
   }
 
+  private todayIso(): string {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
   canEdit(request: TimeRequest): boolean {
+    return request.status === 'PENDING' || request.status === 'EDITED';
+  }
+
+  canCancel(request: TimeRequest): boolean {
+    if (request.status === 'PENDING' || request.status === 'EDITED') {
+      return true;
+    }
+    if (request.status === 'APPROVED') {
+      return this.session.isAdmin() || request.startDate >= this.todayIso();
+    }
+    return false;
+  }
+
+  canDelete(request: TimeRequest): boolean {
     return request.status === 'PENDING' || request.status === 'EDITED';
   }
 
@@ -94,6 +117,7 @@ export class RequestHistoryComponent {
       this.editForm.markAllAsTouched();
       return;
     }
+    this.error.set('');
     const value = this.editForm.getRawValue();
     this.api.updateRequest(request.id, {
       startDate: value.startDate,
@@ -111,7 +135,8 @@ export class RequestHistoryComponent {
   }
 
   cancel(request: TimeRequest): void {
-    this.api.setStatus(request.id, 'CANCELLED').subscribe({
+    this.error.set('');
+    this.api.cancelRequest(request.id).subscribe({
       next: () => {
         this.notice.set('Request cancelled.');
         this.load();
@@ -121,6 +146,7 @@ export class RequestHistoryComponent {
   }
 
   remove(request: TimeRequest): void {
+    this.error.set('');
     this.api.deleteRequest(request.id).subscribe({
       next: () => {
         this.confirmId.set(null);

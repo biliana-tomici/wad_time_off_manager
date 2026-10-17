@@ -16,7 +16,7 @@ public interface RequestRepository extends JpaRepository<Request, Long> {
 
     Request findRequestById(Long requestId);
 
-    @Query("SELECT r FROM Request r WHERE (r.employee.manager.id = :managerId OR (:includeUnassigned = true AND r.employee.manager IS NULL AND r.employee.id != :managerId)) AND r.status IN :statuses")
+    @Query("SELECT r FROM Request r WHERE (r.employee.manager.id = :managerId OR (:includeUnassigned = true AND r.employee.manager IS NULL)) AND r.status IN :statuses")
     Page<Request> findPendingRequestsByManagerId(@Param("managerId") Long managerId,
                                                  @Param("includeUnassigned") boolean includeUnassigned,
                                                  @Param("statuses") List<Status> statuses,

@@ -39,7 +39,7 @@
             <tr>
               <td>
                 {{ prettyDate(request.startDate) }} – {{ prettyDate(request.endDate) }}
-                <span class="sub">{{ inclusiveDays(request.startDate, request.endDate) }} days</span>
+                <span class="sub">{{ request.workingDays ?? workingDays(request.startDate, request.endDate) }} days</span>
               </td>
               <td>{{ request.balanceName || '—' }}</td>
               <td>{{ request.explanation }}</td>
@@ -49,13 +49,15 @@
                   @if (canEdit(request)) {
                     <button type="button" class="btn ghost" (click)="startEdit(request)">Edit</button>
                   }
-                  @if (request.status !== 'CANCELLED' && request.status !== 'REJECTED') {
+                  @if (canCancel(request)) {
                     <button type="button" class="btn ghost" (click)="cancel(request)">Cancel</button>
                   }
-                  @if (confirmId() === request.id) {
-                    <button type="button" class="btn danger" (click)="remove(request)">Confirm delete</button>
-                  } @else {
-                    <button type="button" class="btn danger" (click)="confirmId.set(request.id)">Delete</button>
+                  @if (canDelete(request)) {
+                    @if (confirmId() === request.id) {
+                      <button type="button" class="btn danger" (click)="remove(request)">Confirm delete</button>
+                    } @else {
+                      <button type="button" class="btn danger" (click)="confirmId.set(request.id)">Delete</button>
+                    }
                   }
                 </div>
               </td>

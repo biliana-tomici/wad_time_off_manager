@@ -3,6 +3,6 @@
 .row-actions select {
   border: 1px solid var(--line);
   background: var(--card);
-  border-radius: 999px;
+  border-radius: var(--radius-sm, 10px);
   padding: 0.55rem 0.8rem;
 }

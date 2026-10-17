@@ -146,7 +146,10 @@ public class AuthorizationService {
                 }
                 throw new AccessDeniedException("Cannot cancel approved request: must be before start date for owner, or performed by manager/admin");
             }
-            throw new AccessDeniedException("Cannot cancel request in status " + request.getStatus());
+            if (isOwner || isManagerOfOwner || currentIsAdmin) {
+                return;
+            }
+            throw new AccessDeniedException("Not authorized to cancel this request");
         }
 
         if (targetStatus == Status.APPROVED || targetStatus == Status.REJECTED) {
@@ -173,13 +176,10 @@ public class AuthorizationService {
         User owner = request.getEmployee();
         boolean isOwner = owner != null && current.getId().equals(owner.getId());
 
-        if (isAdmin(current)) {
+        if (isAdmin(current) || isOwner) {
             return;
         }
-        if (isOwner && (request.getStatus() == Status.PENDING || request.getStatus() == Status.EDITED)) {
-            return;
-        }
-        throw new AccessDeniedException("Only the owner (while pending/edited) or an administrator can delete a request");
+        throw new AccessDeniedException("Only the owner or an administrator can delete a request");
     }
 
     public void checkCanViewProject(Project project) {

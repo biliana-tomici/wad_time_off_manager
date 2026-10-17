@@ -4,12 +4,14 @@ import com.project.timeOffManager.dto.RequestDto;
 import com.project.timeOffManager.dto.command.CreateRequestCommand;
 import com.project.timeOffManager.dto.command.UpdateRequestCommand;
 import com.project.timeOffManager.entity.Balance;
+import com.project.timeOffManager.entity.Project;
 import com.project.timeOffManager.entity.Request;
 import com.project.timeOffManager.entity.User;
 import com.project.timeOffManager.enums.Status;
 import com.project.timeOffManager.enums.TimePeriod;
 import com.project.timeOffManager.mapper.RequestMapper;
 import com.project.timeOffManager.repository.BalanceRepository;
+import com.project.timeOffManager.repository.ProjectRepository;
 import com.project.timeOffManager.repository.RequestRepository;
 import com.project.timeOffManager.repository.UserRepository;
 import com.project.timeOffManager.exception.BusinessRuleException;
@@ -23,6 +25,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import jakarta.transaction.Transactional;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -33,17 +36,20 @@ public class RequestService {
     private final RequestMapper requestMapper;
     private final UserRepository userRepository;
     private final BalanceRepository balanceRepository;
+    private final ProjectRepository projectRepository;
     private final AuthorizationService authorizationService;
 
     public RequestService(RequestRepository requestRepository,
                           RequestMapper requestMapper,
                           UserRepository userRepository,
                           BalanceRepository balanceRepository,
+                          ProjectRepository projectRepository,
                           AuthorizationService authorizationService) {
         this.requestRepository = requestRepository;
         this.requestMapper = requestMapper;
         this.userRepository = userRepository;
         this.balanceRepository = balanceRepository;
+        this.projectRepository = projectRepository;
         this.authorizationService = authorizationService;
     }
 
@@ -53,7 +59,7 @@ public class RequestService {
             throw new ResourceNotFoundException("Request not found with id: " + requestId);
         }
         authorizationService.checkCanViewRequest(request);
-        return requestMapper.toDto(request);
+        return toDtoWithCoverageWarnings(request);
     }
 
     @Transactional
@@ -79,6 +85,11 @@ public class RequestService {
 
         if (command.endDate().isBefore(command.startDate())) {
             throw new BusinessRuleException("End date cannot be before start date");
+        }
+
+        if (!authorizationService.isAdmin(authorizationService.getCurrentUser())
+                && command.startDate().isBefore(LocalDate.now())) {
+            throw new BusinessRuleException("Start date cannot be in the past");
         }
 
         long requestedDays = calculateWorkingDays(command.startDate(), command.endDate());
@@ -145,6 +156,11 @@ public class RequestService {
             throw new BusinessRuleException("End date cannot be before start date");
         }
 
+        if (!authorizationService.isAdmin(authorizationService.getCurrentUser())
+                && newStart.isBefore(LocalDate.now())) {
+            throw new BusinessRuleException("Start date cannot be in the past");
+        }
+
         Balance newBalance = existingRequest.getBalance();
         Long newBalanceId = command.balanceId();
         if (newBalanceId != null) {
@@ -202,7 +218,27 @@ public class RequestService {
     }
 
     @Transactional
+    public RequestDto cancelRequest(Long requestId) {
+        return updateStatus(requestId, Status.CANCELLED, null);
+    }
+
+    @Transactional
+    public RequestDto approveRequest(Long requestId, String comment) {
+        return updateStatus(requestId, Status.APPROVED, comment);
+    }
+
+    @Transactional
+    public RequestDto rejectRequest(Long requestId, String comment) {
+        return updateStatus(requestId, Status.REJECTED, comment);
+    }
+
+    @Transactional
     public RequestDto updateStatus(Long requestId, Status status) {
+        return updateStatus(requestId, status, null);
+    }
+
+    @Transactional
+    public RequestDto updateStatus(Long requestId, Status status, String comment) {
         Request existingRequest = requestRepository.findRequestById(requestId);
 
         if (existingRequest == null) {
@@ -242,6 +278,9 @@ public class RequestService {
 
         existingRequest.setDecidedBy(authorizationService.getCurrentUser());
         existingRequest.setDecidedAt(LocalDateTime.now());
+        if (comment != null && !comment.isBlank()) {
+            existingRequest.setDecisionComment(comment.trim());
+        }
         existingRequest.setStatus(status);
         existingRequest.setModifiedDate(LocalDate.now());
 
@@ -249,9 +288,6 @@ public class RequestService {
     }
 
     private boolean isValidStatusTransition(Status current, Status target) {
-        if (current == target) {
-            return true;
-        }
         return switch (current) {
             case PENDING, EDITED -> target == Status.APPROVED || target == Status.REJECTED || target == Status.CANCELLED;
             case APPROVED -> target == Status.CANCELLED;
@@ -260,27 +296,21 @@ public class RequestService {
     }
 
     public long calculateWorkingDays(LocalDate start, LocalDate end) {
-        if (start == null || end == null || end.isBefore(start)) {
-            return 0;
-        }
-        long days = 0;
-        LocalDate current = start;
-        while (!current.isAfter(end)) {
-            DayOfWeek dow = current.getDayOfWeek();
-            if (dow != DayOfWeek.SATURDAY && dow != DayOfWeek.SUNDAY) {
-                days++;
-            }
-            current = current.plusDays(1);
-        }
-        return days;
+        return LeaveDayCalculator.calculateWorkingDays(start, end);
     }
 
+    @Transactional
     public boolean deleteRequest(Long requestId) {
         Request existingRequest = requestRepository.findRequestById(requestId);
         if (existingRequest == null) {
             return false;
         }
         authorizationService.checkCanDeleteRequest(existingRequest);
+        if (!authorizationService.isAdmin(authorizationService.getCurrentUser())
+                && existingRequest.getStatus() != Status.PENDING
+                && existingRequest.getStatus() != Status.EDITED) {
+            throw new BusinessRuleException("Cannot delete request with status " + existingRequest.getStatus() + "; only PENDING or EDITED requests can be deleted");
+        }
         requestRepository.delete(existingRequest);
         return true;
     }
@@ -291,8 +321,70 @@ public class RequestService {
 
     public Page<RequestDto> getPendingRequestsByManagerId(Long managerId, boolean includeUnassigned, Pageable pageable) {
         authorizationService.checkCanViewPendingQueue(managerId, includeUnassigned);
-        return requestRepository.findPendingRequestsByManagerId(managerId, includeUnassigned, List.of(Status.PENDING, Status.EDITED), pageable)
-                .map(requestMapper::toDto);
+        boolean effectiveIncludeUnassigned = includeUnassigned || authorizationService.isAdmin(authorizationService.getCurrentUser());
+        return requestRepository.findPendingRequestsByManagerId(managerId, effectiveIncludeUnassigned, List.of(Status.PENDING, Status.EDITED), pageable)
+                .map(this::toDtoWithCoverageWarnings);
+    }
+
+    private RequestDto toDtoWithCoverageWarnings(Request request) {
+        RequestDto dto = requestMapper.toDto(request);
+        if (request.getStatus() == Status.PENDING || request.getStatus() == Status.EDITED) {
+            return dto.withCoverageWarnings(computeCoverageWarnings(request));
+        }
+        return dto;
+    }
+
+    public List<String> computeCoverageWarnings(Request request) {
+        if (request == null || request.getEmployee() == null || request.getStartDate() == null || request.getEndDate() == null) {
+            return List.of();
+        }
+        Long empId = request.getEmployee().getId();
+        List<Project> projects = projectRepository.findAllByEmployees_Id(empId);
+        if (projects.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> warnings = new ArrayList<>();
+        LocalDate start = request.getStartDate();
+        LocalDate end = request.getEndDate();
+
+        for (Project project : projects) {
+            if (project.getMinEmp() == null || project.getMinEmp() <= 0) {
+                continue;
+            }
+            List<User> members = project.getEmployees() != null
+                    ? project.getEmployees().stream().filter(User::isActive).toList()
+                    : List.of();
+            int totalMembers = members.size();
+            List<Long> otherMemberIds = members.stream()
+                    .map(User::getId)
+                    .filter(id -> !id.equals(empId))
+                    .toList();
+
+            List<Request> overlappingApproved = otherMemberIds.isEmpty()
+                    ? List.of()
+                    : requestRepository.findRequestsOverlappingWindow(otherMemberIds, start, end).stream()
+                            .filter(r -> r.getStatus() == Status.APPROVED)
+                            .toList();
+
+            long maxAbsent = 1;
+            for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
+                final LocalDate day = d;
+                long otherAbsent = overlappingApproved.stream()
+                        .filter(r -> !r.getStartDate().isAfter(day) && !r.getEndDate().isBefore(day))
+                        .map(r -> r.getEmployee().getId())
+                        .distinct()
+                        .count();
+                maxAbsent = Math.max(maxAbsent, 1 + otherAbsent);
+            }
+
+            long minAvailable = Math.max(0, totalMembers - maxAbsent);
+            if (minAvailable < project.getMinEmp()) {
+                warnings.add(String.format("Approving leaves %s with %d of %d required",
+                        project.getName(), minAvailable, project.getMinEmp()));
+            }
+        }
+        return warnings;
     }
 
     public Page<RequestDto> getRequestsByEmployeeId(Long employeeId, Pageable pageable) {

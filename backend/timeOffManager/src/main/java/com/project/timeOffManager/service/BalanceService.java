@@ -8,6 +8,7 @@ import com.project.timeOffManager.entity.User;
 import com.project.timeOffManager.mapper.BalanceMapper;
 import com.project.timeOffManager.repository.BalanceRepository;
 import com.project.timeOffManager.repository.UserRepository;
+import com.project.timeOffManager.exception.BusinessRuleException;
 import com.project.timeOffManager.exception.ResourceNotFoundException;
 import com.project.timeOffManager.security.AuthorizationService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,11 +58,18 @@ public class BalanceService {
         authorizationService.checkCanManageBalances();
 
         User employee = userRepository.findCustomerById(command.employeeId());
-        if (employee == null) {
+        if (employee == null || !employee.isActive()) {
             throw new ResourceNotFoundException("Employee not found with id: " + command.employeeId());
         }
 
-        Balance balance = new Balance(null, employee, command.daysLeft(), command.name(), command.maxDays());
+        if (command.maxDays() <= 0) {
+            throw new BusinessRuleException("Max days must be greater than 0");
+        }
+        if (command.daysLeft() > command.maxDays()) {
+            throw new BusinessRuleException("Days left cannot exceed max days");
+        }
+
+        Balance balance = new Balance(null, employee, command.daysLeft(), command.name().trim(), command.maxDays());
         Balance savedBalance = balanceRepository.save(balance);
 
         return balanceMapper.toDto(savedBalance);
@@ -77,13 +85,24 @@ public class BalanceService {
         }
 
         if (command.name() != null) {
-            existingBalance.setName(command.name());
+            if (command.name().isBlank()) {
+                throw new BusinessRuleException("Balance name cannot be blank");
+            }
+            existingBalance.setName(command.name().trim());
         }
         if (command.daysLeft() != null) {
             existingBalance.setDaysLeft(command.daysLeft());
         }
         if (command.maxDays() != null) {
             existingBalance.setMaxDays(command.maxDays());
+        }
+
+        if (existingBalance.getMaxDays() != null && existingBalance.getMaxDays() <= 0) {
+            throw new BusinessRuleException("Max days must be greater than 0");
+        }
+        if (existingBalance.getDaysLeft() != null && existingBalance.getMaxDays() != null
+                && existingBalance.getDaysLeft() > existingBalance.getMaxDays()) {
+            throw new BusinessRuleException("Days left cannot exceed max days");
         }
 
         return balanceMapper.toDto(balanceRepository.save(existingBalance));

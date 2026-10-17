@@ -6,5 +6,10 @@ import com.project.timeOffManager.enums.Role;
 public record UpdateUserCommand(String firstName,
                                 String lastName,
                                 Role role,
-                                Long managerId) {
+                                Long managerId,
+                                Boolean clearManager) {
+
+    public UpdateUserCommand(String firstName, String lastName, Role role, Long managerId) {
+        this(firstName, lastName, role, managerId, false);
+    }
 }

@@ -1,0 +1,177 @@
+<section>
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Administration</p>
+      <h2>People &amp; Allowances.</h2>
+      <p class="lede">Manage the organization directory, roles, reporting lines, and annual leave allowances.</p>
+    </div>
+  </header>
+
+  @if (error()) { <div class="banner error">{{ error() }}</div> }
+  @if (notice()) { <div class="banner">{{ notice() }}</div> }
+
+  <div class="split">
+    <div class="stack">
+      <article class="card stack">
+        <div class="section-title">
+          <h3>Directory</h3>
+          <span class="meta">{{ session.users().length }} active user(s)</span>
+        </div>
+
+        @for (user of session.users(); track user.id) {
+          @if (editingUserId() === user.id) {
+            <form class="stack" style="padding: 12px 0; border-top: 1px solid var(--line);" [formGroup]="editUserForm" (ngSubmit)="saveEditUser(user.id)">
+              <div class="form-grid">
+                <label class="field">First name
+                  <input formControlName="firstName" />
+                </label>
+                <label class="field">Last name
+                  <input formControlName="lastName" />
+                </label>
+                <label class="field">Role
+                  <select formControlName="role">
+                    @for (r of roles; track r) {
+                      <option [value]="r">{{ r }}</option>
+                    }
+                  </select>
+                </label>
+                <label class="field">Manager
+                  <select formControlName="managerId">
+                    <option value="">No manager</option>
+                    @for (m of availableManagersFor(user.id); track m.id) {
+                      <option [value]="m.id">{{ m.firstName }} {{ m.lastName }}</option>
+                    }
+                  </select>
+                </label>
+              </div>
+              <div class="row-actions">
+                <button type="submit" class="btn primary">Save</button>
+                <button type="button" class="btn ghost" (click)="cancelEditUser()">Cancel</button>
+              </div>
+            </form>
+          } @else {
+            <div class="kv" style="align-items: center; border-top: 1px solid var(--line); padding: 10px 0;">
+              <div>
+                <b>{{ fullName(user) }}</b>
+                <span class="pill" style="margin-left: 8px;">{{ user.role || 'EMPLOYEE' }}</span>
+                <span class="sub">{{ user.manager ? 'Reports to ' + fullName(user.manager) : 'No manager' }}</span>
+              </div>
+              <div class="row-actions">
+                <button type="button" class="btn ghost" (click)="selectUserForBalances(user.id)">Allowances</button>
+                <button type="button" class="btn ghost" (click)="startEditUser(user)">Edit</button>
+                @if (confirmId() === user.id) {
+                  <button type="button" class="btn danger" (click)="removePerson(user.id)">Confirm</button>
+                } @else {
+                  <button type="button" class="btn danger" (click)="confirmId.set(user.id)">Remove</button>
+                }
+              </div>
+            </div>
+          }
+        }
+      </article>
+
+      <article class="card stack">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Allowances</p>
+            <h3>Manage balances</h3>
+          </div>
+        </div>
+
+        <label class="field">Employee
+          <select [value]="'' + (selectedUserId() ?? '')" (change)="selectUserForBalances($any($event.target).value)">
+            @for (user of session.users(); track user.id) {
+              <option [value]="user.id">{{ user.firstName }} {{ user.lastName }}</option>
+            }
+          </select>
+        </label>
+
+        @if (loadingBalances()) {
+          <p class="muted">Loading balances…</p>
+        } @else if (balances().length === 0) {
+          <p class="muted">No allowances configured for this employee.</p>
+        } @else {
+          @for (balance of balances(); track balance.id) {
+            @if (editingBalanceId() === balance.id) {
+              <form class="stack" style="padding: 10px 0; border-top: 1px solid var(--line);" [formGroup]="editBalanceForm" (ngSubmit)="saveEditBalance(balance.id)">
+                <div class="form-grid">
+                  <label class="field wide">Allowance name
+                    <input formControlName="name" />
+                  </label>
+                  <label class="field">Days left
+                    <input type="number" min="0" formControlName="daysLeft" />
+                  </label>
+                  <label class="field">Max days
+                    <input type="number" min="1" formControlName="maxDays" />
+                  </label>
+                </div>
+                <div class="row-actions">
+                  <button type="submit" class="btn primary">Save</button>
+                  <button type="button" class="btn ghost" (click)="cancelEditBalance()">Cancel</button>
+                </div>
+              </form>
+            } @else {
+              <div class="kv" style="align-items: center; border-top: 1px solid var(--line); padding: 8px 0;">
+                <div>
+                  <b>{{ balance.name }}</b>
+                  <span class="sub">{{ balance.daysLeft }} of {{ balance.maxDays }} days remaining</span>
+                </div>
+                <div class="row-actions">
+                  <button type="button" class="btn ghost" (click)="startEditBalance(balance)">Edit</button>
+                  <button type="button" class="btn danger" (click)="removeBalance(balance.id)">Remove</button>
+                </div>
+              </div>
+            }
+          }
+        }
+
+        <form class="stack" style="padding-top: 10px; border-top: 1px solid var(--line);" [formGroup]="balanceForm" (ngSubmit)="addBalance()">
+          <h4>Add allowance</h4>
+          <div class="form-grid">
+            <label class="field wide">Name
+              <input formControlName="name" placeholder="Vacation" />
+            </label>
+            <label class="field">Days left
+              <input type="number" min="0" formControlName="daysLeft" />
+            </label>
+            <label class="field">Max days
+              <input type="number" min="1" formControlName="maxDays" />
+            </label>
+          </div>
+          <button type="submit" class="btn primary">Add allowance</button>
+        </form>
+      </article>
+    </div>
+
+    <div class="stack">
+      <form class="card stack" [formGroup]="userForm" (ngSubmit)="addPerson()">
+        <div>
+          <p class="eyebrow">Directory</p>
+          <h3>Add a person</h3>
+        </div>
+        <label class="field">First name
+          <input formControlName="firstName" />
+        </label>
+        <label class="field">Last name
+          <input formControlName="lastName" />
+        </label>
+        <label class="field">Role
+          <select formControlName="role">
+            @for (r of roles; track r) {
+              <option [value]="r">{{ r }}</option>
+            }
+          </select>
+        </label>
+        <label class="field">Manager
+          <select formControlName="managerId">
+            <option value="">No manager</option>
+            @for (user of session.users(); track user.id) {
+              <option [value]="user.id">{{ user.firstName }} {{ user.lastName }}</option>
+            }
+          </select>
+        </label>
+        <button class="btn primary" type="submit">Add person</button>
+      </form>
+    </div>
+  </div>
+</section>

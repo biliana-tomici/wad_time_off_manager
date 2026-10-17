@@ -15,8 +15,10 @@ import org.springframework.http.ResponseEntity;
 import com.project.timeOffManager.exception.ResourceNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
-@RequestMapping("/api/request")
+@RequestMapping({"/api/request", "/api/requests"})
 public class RequestController {
 
     private final RequestService requestService;
@@ -55,6 +57,33 @@ public class RequestController {
                                                     @Parameter(description = "Updated request object", required = true)
                                                     @Valid @RequestBody UpdateRequestCommand command) {
         return ResponseEntity.ok(requestService.updateRequest(command, id));
+    }
+
+    @Operation(summary = "Cancel a request")
+    @ApiResponse(responseCode = "200", description = "Request cancelled")
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<RequestDto> cancelRequest(@PathVariable("id") Long id) {
+        return ResponseEntity.ok(requestService.cancelRequest(id));
+    }
+
+    @Operation(summary = "Approve a request")
+    @ApiResponse(responseCode = "200", description = "Request approved")
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<RequestDto> approveRequest(@PathVariable("id") Long id,
+                                                     @RequestParam(value = "comment", required = false) String comment,
+                                                     @RequestBody(required = false) Map<String, String> body) {
+        String effectiveComment = comment != null ? comment : (body != null ? body.get("comment") : null);
+        return ResponseEntity.ok(requestService.approveRequest(id, effectiveComment));
+    }
+
+    @Operation(summary = "Reject a request")
+    @ApiResponse(responseCode = "200", description = "Request rejected")
+    @PostMapping("/{id}/reject")
+    public ResponseEntity<RequestDto> rejectRequest(@PathVariable("id") Long id,
+                                                    @RequestParam(value = "comment", required = false) String comment,
+                                                    @RequestBody(required = false) Map<String, String> body) {
+        String effectiveComment = comment != null ? comment : (body != null ? body.get("comment") : null);
+        return ResponseEntity.ok(requestService.rejectRequest(id, effectiveComment));
     }
 
     @Operation(summary = "Update the status of a request")

@@ -8,14 +8,16 @@ import com.project.timeOffManager.entity.User;
 import com.project.timeOffManager.mapper.UserMapper;
 import com.project.timeOffManager.repository.ProjectRepository;
 import com.project.timeOffManager.repository.UserRepository;
+import com.project.timeOffManager.exception.BusinessRuleException;
 import com.project.timeOffManager.exception.ResourceNotFoundException;
 import com.project.timeOffManager.security.AuthorizationService;
-import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 public class UserService {
 
     private final UserRepository userRepository;
@@ -36,7 +38,7 @@ public class UserService {
     public UserDto getUserById(Long customerId) {
         authorizationService.checkCanViewUser(customerId);
         User user = userRepository.findCustomerById(customerId);
-        if (user == null) {
+        if (user == null || !user.isActive()) {
             throw new ResourceNotFoundException("User not found with id: " + customerId);
         }
 
@@ -44,7 +46,7 @@ public class UserService {
     }
 
     public List<UserDto> getAllUsers() {
-        return userMapper.toDtoList(userRepository.findAll());
+        return userMapper.toDtoList(userRepository.findByActiveTrue());
     }
 
     @Transactional
@@ -52,26 +54,38 @@ public class UserService {
         authorizationService.checkCanManageUsers();
 
         User manager = command.managerId() != null ? findUser(command.managerId()) : null;
-        User savedUser = userRepository.save(new User(command.firstName(), command.lastName(), manager, command.role()));
+        User savedUser = userRepository.save(new User(command.firstName().trim(), command.lastName().trim(), manager, command.role()));
 
         return userMapper.toDto(savedUser);
     }
 
+    @Transactional
     public UserDto updateUser(UpdateUserCommand command, Long customerId) {
         authorizationService.checkCanManageUsers();
 
         User existingUser = findUser(customerId);
 
         if (command.firstName() != null) {
-            existingUser.setFirstName(command.firstName());
+            if (command.firstName().isBlank()) {
+                throw new BusinessRuleException("First name cannot be blank");
+            }
+            existingUser.setFirstName(command.firstName().trim());
         }
         if (command.lastName() != null) {
-            existingUser.setLastName(command.lastName());
+            if (command.lastName().isBlank()) {
+                throw new BusinessRuleException("Last name cannot be blank");
+            }
+            existingUser.setLastName(command.lastName().trim());
         }
         if (command.role() != null) {
             existingUser.setRole(command.role());
         }
-        if (command.managerId() != null) {
+        if (Boolean.TRUE.equals(command.clearManager()) || (command.managerId() != null && command.managerId() <= 0)) {
+            existingUser.setManager(null);
+        } else if (command.managerId() != null) {
+            if (command.managerId().equals(customerId)) {
+                throw new BusinessRuleException("A user cannot be their own manager");
+            }
             existingUser.setManager(findUser(command.managerId()));
         }
 
@@ -80,7 +94,7 @@ public class UserService {
 
     private User findUser(Long userId) {
         User user = userRepository.findCustomerById(userId);
-        if (user == null) {
+        if (user == null || !user.isActive()) {
             throw new ResourceNotFoundException("User not found with id: " + userId);
         }
         return user;
@@ -91,7 +105,7 @@ public class UserService {
         authorizationService.checkCanManageUsers();
 
         User user = userRepository.findCustomerById(customerId);
-        if (user == null) {
+        if (user == null || !user.isActive()) {
             throw new ResourceNotFoundException("User not found with id: " + customerId);
         }
 
@@ -107,12 +121,14 @@ public class UserService {
             projectRepository.save(proj);
         }
 
-        if (user.getProjects() != null) {
-            user.getProjects().clear();
-            userRepository.save(user);
+        for (Project proj : projectRepository.findAll()) {
+            if (proj.getEmployees() != null && proj.getEmployees().removeIf(u -> customerId.equals(u.getId()))) {
+                projectRepository.save(proj);
+            }
         }
 
-        userRepository.delete(user);
+        user.setActive(false);
+        userRepository.save(user);
         return true;
     }
 

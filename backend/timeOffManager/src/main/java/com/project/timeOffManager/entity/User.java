@@ -23,6 +23,9 @@ public class User {
     @Column(nullable = false)
     private Role role = Role.EMPLOYEE;
 
+    @Column(nullable = false)
+    private boolean active = true;
+
     @ManyToMany(mappedBy = "employees")
     private List<Project> projects;
 
@@ -104,6 +107,14 @@ public class User {
 
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 
     @Override

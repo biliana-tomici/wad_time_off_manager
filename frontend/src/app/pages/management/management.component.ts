@@ -59,7 +59,10 @@ export class ManagementComponent {
   }
 
   decide(request: TimeRequest, status: 'APPROVED' | 'REJECTED'): void {
-    this.api.setStatus(request.id, status).subscribe({
+    const action$ = status === 'APPROVED'
+      ? this.api.approveRequest(request.id)
+      : this.api.rejectRequest(request.id);
+    action$.subscribe({
       next: () => {
         this.notice.set(status === 'APPROVED' ? 'Request approved.' : 'Request rejected.');
         this.load();

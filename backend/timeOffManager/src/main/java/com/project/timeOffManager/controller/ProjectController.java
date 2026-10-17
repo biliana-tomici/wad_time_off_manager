@@ -17,6 +17,7 @@ import com.project.timeOffManager.exception.ResourceNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/projects")
@@ -99,9 +100,32 @@ public class ProjectController {
     @Operation(summary = "Add an employee to a project")
     @ApiResponse(responseCode = "200", description = "Employee added successfully")
     @ApiResponse(responseCode = "400", description = "Invalid project or employee ID")
+    @PostMapping("/{id}/members")
+    public ResponseEntity<Void> addProjectMemberByBodyOrParam(@PathVariable("id") Long id,
+                                                              @RequestParam(value = "employeeId", required = false) Long employeeId,
+                                                              @RequestBody(required = false) Map<String, Long> body) {
+        Long targetEmployeeId = employeeId != null ? employeeId : (body != null ? body.get("employeeId") : null);
+        if (targetEmployeeId == null) {
+            throw new IllegalArgumentException("employeeId is required");
+        }
+        return projectService.addMember(id, targetEmployeeId) ? ResponseEntity.ok().build() : ResponseEntity.badRequest().build();
+    }
+
+    @Operation(summary = "Add an employee to a project")
+    @ApiResponse(responseCode = "200", description = "Employee added successfully")
+    @ApiResponse(responseCode = "400", description = "Invalid project or employee ID")
     @PostMapping("/{id}/members/{employeeId}")
     public ResponseEntity<Void> addProjectMember(@PathVariable("id") Long id, @PathVariable("employeeId") Long employeeId) {
         return projectService.addMember(id, employeeId) ? ResponseEntity.ok().build() : ResponseEntity.badRequest().build();
+    }
+
+    @Operation(summary = "Remove an employee from a project")
+    @ApiResponse(responseCode = "204", description = "Employee removed successfully")
+    @ApiResponse(responseCode = "404", description = "Project or employee not found")
+    @DeleteMapping("/{id}/members")
+    public ResponseEntity<Void> removeProjectMemberByParam(@PathVariable("id") Long id,
+                                                           @RequestParam("employeeId") Long employeeId) {
+        return projectService.removeMember(id, employeeId) ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
     }
 
     @Operation(summary = "Remove an employee from a project")

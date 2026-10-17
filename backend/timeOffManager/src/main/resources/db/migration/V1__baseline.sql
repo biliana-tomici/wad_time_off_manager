@@ -3,6 +3,7 @@ CREATE TABLE users (
     first_name VARCHAR(255),
     last_name VARCHAR(255),
     role VARCHAR(50) NOT NULL DEFAULT 'EMPLOYEE',
+    active BOOLEAN NOT NULL DEFAULT TRUE,
     manager_id BIGINT,
     CONSTRAINT fk_users_manager FOREIGN KEY (manager_id) REFERENCES users(id)
 );

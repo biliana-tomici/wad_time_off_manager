@@ -1,9 +1,10 @@
 import { Component, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { forkJoin } from 'rxjs';
 import { ApiService } from '../../services/api.service';
 import { SessionService } from '../../services/session.service';
-import { Balance } from '../../models';
-import { errorText, inclusiveDays } from '../../format';
+import { Balance, TimeRequest } from '../../models';
+import { errorText, workingDays } from '../../format';
 
 @Component({
   selector: 'app-new-request',
@@ -18,6 +19,7 @@ export class NewRequestComponent {
   private readonly fb = inject(FormBuilder);
 
   readonly balances = signal<Balance[]>([]);
+  readonly requests = signal<TimeRequest[]>([]);
   readonly saving = signal(false);
   readonly error = signal('');
   readonly notice = signal('');
@@ -26,7 +28,7 @@ export class NewRequestComponent {
     startDate: ['', Validators.required],
     endDate: ['', Validators.required],
     balanceId: ['', Validators.required],
-    explanation: ['', [Validators.required, Validators.minLength(4)]],
+    explanation: ['', [Validators.maxLength(255)]],
   }, {
     validators: (group) => {
       const start = group.get('startDate')?.value;
@@ -39,20 +41,31 @@ export class NewRequestComponent {
     effect(() => {
       const id = this.session.current()?.id;
       this.notice.set('');
+      this.error.set('');
       if (!id) {
         this.balances.set([]);
+        this.requests.set([]);
         return;
       }
-      this.api.balances(id).subscribe({
-        next: (rows) => {
-          this.balances.set(rows);
-          if (!this.form.controls.balanceId.value && rows[0]) {
-            this.form.controls.balanceId.setValue(String(rows[0].id));
-          }
-        },
-        error: (err) => this.error.set(errorText(err))
-      });
+      this.load(id);
     }, { allowSignalWrites: true });
+  }
+
+  load(id = this.session.current()?.id): void {
+    if (!id) return;
+    forkJoin({
+      balances: this.api.balances(id),
+      requests: this.api.requests(id),
+    }).subscribe({
+      next: ({ balances, requests }) => {
+        this.balances.set(balances);
+        this.requests.set(requests);
+        if (!this.form.controls.balanceId.value && balances[0]) {
+          this.form.controls.balanceId.setValue(String(balances[0].id));
+        }
+      },
+      error: (err) => this.error.set(errorText(err))
+    });
   }
 
   selectedBalance(): Balance | undefined {
@@ -60,15 +73,25 @@ export class NewRequestComponent {
     return this.balances().find((balance) => balance.id === id);
   }
 
+  reservedDays(balance: Balance): number {
+    return this.requests()
+      .filter((r) => r.balanceId === balance.id && (r.status === 'PENDING' || r.status === 'EDITED'))
+      .reduce((sum, r) => sum + workingDays(r.startDate, r.endDate), 0);
+  }
+
+  availableDays(balance: Balance): number {
+    return Math.max(0, Number(balance.daysLeft) - this.reservedDays(balance));
+  }
+
   days(): number {
     const value = this.form.getRawValue();
-    return inclusiveDays(value.startDate, value.endDate);
+    return workingDays(value.startDate, value.endDate);
   }
 
   overBalance(): boolean {
     const balance = this.selectedBalance();
     const days = this.days();
-    return !!balance && days > Number(balance.daysLeft);
+    return !!balance && days > this.availableDays(balance);
   }
 
   submit(): void {
@@ -87,11 +110,13 @@ export class NewRequestComponent {
       endDate: value.endDate,
       explanation: value.explanation.trim(),
     }).subscribe({
-      next: () => {
+      next: (created) => {
         this.saving.set(false);
-        this.notice.set('Request sent. It stays pending until a manager reviews it.');
+        const count = created.workingDays ?? this.days();
+        this.notice.set(`Request sent (${count} working ${count === 1 ? 'day' : 'days'}). It stays pending until a manager reviews it.`);
         this.form.patchValue({ explanation: '', startDate: '', endDate: '' });
         this.form.markAsUntouched();
+        this.load(employeeId);
       },
       error: (err) => {
         this.saving.set(false);

@@ -15,6 +15,8 @@ public interface RequestMapper {
     @Mapping(target = "balanceName", source = "balance.name")
     @Mapping(target = "decidedById", source = "decidedBy.id")
     @Mapping(target = "decidedByName", source = "decidedBy")
+    @Mapping(target = "workingDays", expression = "java(com.project.timeOffManager.service.LeaveDayCalculator.calculateWorkingDays(request.getStartDate(), request.getEndDate()))")
+    @Mapping(target = "coverageWarnings", expression = "java(java.util.List.of())")
     RequestDto toDto(Request request);
 
     default String fullName(User user) {

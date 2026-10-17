@@ -16,7 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/balance")
+@RequestMapping({"/api/balance", "/api/balances"})
 public class BalanceController {
 
     private final BalanceService balanceService;

@@ -3,14 +3,14 @@
     <div>
       <p class="eyebrow">Projects</p>
       <h2>Who is covered.</h2>
-      <p class="lede">Each project has a minimum headcount and a manager. Reports list requests created in the chosen window.</p>
+      <p class="lede">Each project has a minimum headcount and a manager. Reports list leave overlapping the chosen window and current availability.</p>
     </div>
   </header>
 
   @if (error()) { <div class="banner error">{{ error() }}</div> }
   @if (notice()) { <div class="banner">{{ notice() }}</div> }
 
-  <div class="split">
+  <div [class.split]="session.isManager()">
     <div class="stack">
       @if (loading()) {
         <p class="muted">Loading…</p>
@@ -19,49 +19,98 @@
       }
       @for (project of projects(); track project.id) {
         <article class="card project-card">
-          <label class="field">Name
-            <input [value]="draftName(project)" (input)="setDraft(project.id, $event)" />
-          </label>
-          <div class="kv"><span>Minimum people</span><b>{{ project.minEmp }}</b></div>
-          <div class="kv"><span>Manager</span><b>{{ fullName(project.manager) }}</b></div>
-          <div class="row-actions" style="margin-top: 12px;">
-            <button type="button" class="btn ghost" (click)="save(project)">Save name</button>
-            <select [value]="periodFor(project.id)" (change)="setPeriod(project.id, $event)">
-              @for (period of periodOptions; track period) {
-                <option [value]="period">{{ period }}</option>
-              }
-            </select>
-            <button type="button" class="btn pine" (click)="download(project)">Download PDF</button>
-            @if (confirmId() === project.id) {
-              <button type="button" class="btn danger" (click)="remove(project)">Confirm delete</button>
+          @if (canManage(project)) {
+            <div class="form-grid" style="margin-bottom: 12px;">
+              <label class="field">Name
+                <input [value]="draftName(project)" (input)="setDraftName(project, $event)" />
+              </label>
+              <label class="field">Minimum people
+                <input type="number" min="1" [value]="draftMinEmp(project)" (input)="setDraftMinEmp(project, $event)" />
+              </label>
+              <label class="field wide">Manager
+                <select [value]="draftManagerId(project)" (change)="setDraftManagerId(project, $event)">
+                  @for (user of session.users(); track user.id) {
+                    <option [value]="user.id">{{ user.firstName }} {{ user.lastName }}</option>
+                  }
+                </select>
+              </label>
+            </div>
+          } @else {
+            <h3>{{ project.name }}</h3>
+            <div class="kv"><span>Minimum people</span><b>{{ project.minEmp }}</b></div>
+            <div class="kv"><span>Manager</span><b>{{ fullName(project.manager) }}</b></div>
+          }
+
+          <div style="margin-top: 12px;">
+            <p class="eyebrow" style="margin-bottom: 6px;">Team members ({{ membersFor(project.id).length }})</p>
+            @if (membersFor(project.id).length === 0) {
+              <p class="muted">No members assigned yet.</p>
             } @else {
-              <button type="button" class="btn danger" (click)="confirmId.set(project.id)">Delete</button>
+              @for (member of membersFor(project.id); track member.id) {
+                <div class="kv">
+                  <span>{{ fullName(member) }}</span>
+                  @if (canManage(project)) {
+                    <button type="button" class="btn danger" (click)="removeMember(project, member.id)">Remove</button>
+                  }
+                </div>
+              }
+            }
+
+            @if (canManage(project)) {
+              <div class="row-actions" style="margin-top: 8px;">
+                <select [value]="selectedMemberToAdd(project.id)" (change)="setMemberToAdd(project.id, $event)">
+                  <option value="">Add person to project…</option>
+                  @for (user of availableUsersFor(project.id); track user.id) {
+                    <option [value]="user.id">{{ user.firstName }} {{ user.lastName }}</option>
+                  }
+                </select>
+                <button type="button" class="btn ghost" [disabled]="!selectedMemberToAdd(project.id)" (click)="addMember(project)">Add member</button>
+              </div>
             }
           </div>
+
+          @if (canManage(project)) {
+            <div class="row-actions" style="margin-top: 14px;">
+              <button type="button" class="btn ghost" (click)="save(project)">Save changes</button>
+              <select [value]="periodFor(project.id)" (change)="setPeriod(project.id, $event)">
+                @for (period of periodOptions; track period) {
+                  <option [value]="period">{{ period }}</option>
+                }
+              </select>
+              <button type="button" class="btn pine" (click)="download(project)">Download PDF</button>
+              @if (confirmId() === project.id) {
+                <button type="button" class="btn danger" (click)="remove(project)">Confirm delete</button>
+              } @else {
+                <button type="button" class="btn danger" (click)="confirmId.set(project.id)">Delete</button>
+              }
+            </div>
+          }
         </article>
       }
     </div>
 
-    <form class="card stack" [formGroup]="form" (ngSubmit)="create()">
-      <div>
-        <p class="eyebrow">New project</p>
-        <h3>Open a project</h3>
-      </div>
-      <label class="field">Name
-        <input formControlName="name" placeholder="Project Epsilon" />
-      </label>
-      <label class="field">Minimum people
-        <input type="number" min="1" formControlName="minEmp" />
-      </label>
-      <label class="field">Manager
-        <select formControlName="managerId">
-          <option value="">Choose a manager</option>
-          @for (user of session.users(); track user.id) {
-            <option [value]="user.id">{{ user.firstName }} {{ user.lastName }}</option>
-          }
-        </select>
-      </label>
-      <button class="btn primary" type="submit">Create project</button>
-    </form>
+    @if (session.isManager()) {
+      <form class="card stack" [formGroup]="form" (ngSubmit)="create()">
+        <div>
+          <p class="eyebrow">New project</p>
+          <h3>Open a project</h3>
+        </div>
+        <label class="field">Name
+          <input formControlName="name" placeholder="Project Epsilon" />
+        </label>
+        <label class="field">Minimum people
+          <input type="number" min="1" formControlName="minEmp" />
+        </label>
+        <label class="field">Manager
+          <select formControlName="managerId">
+            <option value="">Choose a manager</option>
+            @for (user of session.users(); track user.id) {
+              <option [value]="user.id">{{ user.firstName }} {{ user.lastName }}</option>
+            }
+          </select>
+        </label>
+        <button class="btn primary" type="submit">Create project</button>
+      </form>
+    }
   </div>
 </section>

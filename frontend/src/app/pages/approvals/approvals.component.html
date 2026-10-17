@@ -1,0 +1,59 @@
+<section>
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Approvals</p>
+      <h2>Review the queue.</h2>
+      <p class="lede">
+        Pending and edited requests from people who report to {{ fullName(session.current()) }}@if (session.isAdmin()) {, plus employees without a manager}.
+      </p>
+    </div>
+  </header>
+
+  @if (error()) { <div class="banner error">{{ error() }}</div> }
+  @if (notice()) { <div class="banner">{{ notice() }}</div> }
+
+  <section class="stack">
+    @if (loading()) {
+      <p class="muted">Loading…</p>
+    } @else if (pending().length === 0) {
+      <article class="card empty">Nothing is waiting in the approval queue.</article>
+    }
+    @for (request of pending(); track request.id) {
+      <article class="card stack">
+        <div class="section-title">
+          <h3>{{ request.employeeName || 'Unnamed' }}</h3>
+          <span class="pill" [class.pill-pending]="request.status === 'PENDING'" [class.pill-edited]="request.status === 'EDITED'">
+            {{ statusLabel(request.status) }}
+          </span>
+        </div>
+        <p>
+          {{ request.balanceName || 'Leave' }} · {{ prettyDate(request.startDate) }} – {{ prettyDate(request.endDate) }}
+          · <b>{{ request.workingDays ?? workingDays(request.startDate, request.endDate) }} working day(s)</b>
+        </p>
+        @if (request.explanation) {
+          <p class="meta">{{ request.explanation }}</p>
+        }
+
+        @if (request.coverageWarnings && request.coverageWarnings.length > 0) {
+          @for (warn of request.coverageWarnings; track warn) {
+            <div class="banner warn" style="margin-bottom: 0;">{{ warn }}</div>
+          }
+        }
+
+        <label class="field">Decision comment (optional)
+          <input
+            type="text"
+            placeholder="Reason or note for employee"
+            [value]="comments()[request.id] || ''"
+            (input)="setComment(request.id, $any($event.target).value)"
+          />
+        </label>
+
+        <div class="row-actions">
+          <button type="button" class="btn pine" (click)="decide(request, 'APPROVED')">Approve</button>
+          <button type="button" class="btn danger" (click)="decide(request, 'REJECTED')">Reject</button>
+        </div>
+      </article>
+    }
+  </section>
+</section>

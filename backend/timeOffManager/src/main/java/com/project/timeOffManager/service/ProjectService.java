@@ -100,7 +100,14 @@ public class ProjectService {
     }
 
     public Page<ProjectDto> getAllProjects(Pageable pageable) {
-        return projectRepository.findAll(pageable).map(projectMapper::toDto);
+        User current = authorizationService.getCurrentUser();
+        if (authorizationService.isAdmin(current)) {
+            return projectRepository.findAll(pageable).map(projectMapper::toDto);
+        }
+        if (authorizationService.isManager(current)) {
+            return projectRepository.findByManager_Id(current.getId(), pageable).map(projectMapper::toDto);
+        }
+        return projectRepository.findByEmployees_Id(current.getId(), pageable).map(projectMapper::toDto);
     }
 
     @Transactional
