@@ -2,6 +2,7 @@ package com.project.timeOffManager.controller;
 
 import com.project.timeOffManager.dto.UserDto;
 import com.project.timeOffManager.dto.command.CreateUserCommand;
+import com.project.timeOffManager.dto.command.ResetPasswordCommand;
 import com.project.timeOffManager.dto.command.UpdateUserCommand;
 import jakarta.validation.Valid;
 import com.project.timeOffManager.service.UserService;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.project.timeOffManager.exception.ResourceNotFoundException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -45,6 +47,7 @@ public class UserController {
     @Operation(summary = "Create a new user")
     @ApiResponse(responseCode = "201", description = "User created successfully")
     @ApiResponse(responseCode = "400", description = "Invalid user data")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<UserDto> createCustomer(@Parameter(description = "User object to be created")
                                                   @Valid @RequestBody CreateUserCommand command) {
@@ -54,6 +57,7 @@ public class UserController {
     @Operation(summary = "Update an existing user")
     @ApiResponse(responseCode = "200", description = "User updated successfully")
     @ApiResponse(responseCode = "404", description = "User not found")
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<UserDto> updateCustomer(@Parameter(description = "ID of the user to update")
                                                   @PathVariable("id") Long id,
@@ -62,9 +66,22 @@ public class UserController {
         return ResponseEntity.ok(userService.updateUser(command, id));
     }
 
+    @Operation(summary = "Reset or set a user's password (Admin)")
+    @ApiResponse(responseCode = "204", description = "Password updated successfully")
+    @ApiResponse(responseCode = "404", description = "User not found")
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{id}/password")
+    public ResponseEntity<Void> resetUserPassword(@Parameter(description = "ID of the user")
+                                                  @PathVariable("id") Long id,
+                                                  @Valid @RequestBody ResetPasswordCommand command) {
+        userService.resetUserPassword(id, command.newPassword());
+        return ResponseEntity.noContent().build();
+    }
+
     @Operation(summary = "Delete a user by ID")
     @ApiResponse(responseCode = "204", description = "User deleted successfully")
     @ApiResponse(responseCode = "404", description = "User not found")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCustomer(@Parameter(description = "ID of the user to delete")
                                                @PathVariable("id") Long id) {

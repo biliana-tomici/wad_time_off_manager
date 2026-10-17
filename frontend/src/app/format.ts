@@ -81,6 +81,7 @@ export function statusLabel(status?: string | null): string {
 }
 
 export function errorText(err: unknown): string {
+  const status = typeof err === 'object' && err && 'status' in err ? Number((err as { status: number }).status) : NaN;
   if (typeof err === 'object' && err !== null) {
     const body = (err as { error?: unknown }).error;
     if (typeof body === 'object' && body !== null) {
@@ -96,13 +97,33 @@ export function errorText(err: unknown): string {
         return detail;
       }
     }
+    if (typeof body === 'string') {
+      try {
+        const parsed = JSON.parse(body) as { detail?: string };
+        if (parsed?.detail) {
+          return parsed.detail;
+        }
+      } catch {
+        if (status >= 500 && (body.includes('proxy') || body.includes('ECONNREFUSED') || body.trim() === '')) {
+          return 'Cannot reach the backend API. Please ensure the Spring Boot server is running.';
+        }
+      }
+    }
+    if ((body === null || body === undefined) && (status === 500 || status === 502 || status === 503 || status === 504)) {
+      return 'Cannot reach the backend API. Please ensure the Spring Boot server is running.';
+    }
   }
-  const status = typeof err === 'object' && err && 'status' in err ? Number((err as { status: number }).status) : NaN;
-  if (status === 0) {
-    return 'Cannot reach the API. Start the Spring Boot app and try again.';
+  if (status === 0 || status === 502 || status === 503 || status === 504) {
+    return 'Cannot reach the backend API. Please ensure the Spring Boot server is running.';
+  }
+  if (status === 401) {
+    return 'Invalid email or password.';
+  }
+  if (status === 403) {
+    return 'You do not have permission to perform this action.';
   }
   if (status === 400) {
-    return 'The server rejected this. Check the dates, the allowance, and the manager.';
+    return 'The server rejected this request. Please check your input fields.';
   }
   if (status === 404) {
     return 'That record is no longer there.';
@@ -112,3 +133,4 @@ export function errorText(err: unknown): string {
   }
   return 'Something went wrong.';
 }
+

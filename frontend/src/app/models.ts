@@ -29,9 +29,18 @@ export interface AppUser {
   id: number;
   firstName: string;
   lastName: string;
+  email?: string | null;
   role?: Role | null;
   projects?: Project[] | null;
   manager?: Manager | null;
+}
+
+export interface AuthResponse {
+  token: string;
+  tokenType: string;
+  expiresIn: number;
+  expiresAt: string;
+  user: AppUser;
 }
 
 export interface TimeRequest {

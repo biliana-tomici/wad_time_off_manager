@@ -23,7 +23,7 @@ describe('ApprovalsComponent', () => {
       { id: 1, firstName: 'Alice', lastName: 'Smith', role: 'ADMIN', manager: null },
       { id: 2, firstName: 'Bob', lastName: 'Johnson', role: 'MANAGER', manager: { id: 1, firstName: 'Alice', lastName: 'Smith' } },
     ]);
-    session.select(1);
+    session.current.set(session.users()[0]);
 
     fixture = TestBed.createComponent(ApprovalsComponent);
     component = fixture.componentInstance;

@@ -25,4 +25,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @EntityGraph(attributePaths = {"projects"})
     List<User> findByActiveTrue();
+
+    @EntityGraph(attributePaths = {"projects"})
+    java.util.Optional<User> findByEmailIgnoreCase(String email);
+
+    boolean existsByEmailIgnoreCase(String email);
 }

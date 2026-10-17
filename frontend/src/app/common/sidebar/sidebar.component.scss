@@ -1,1 +1,83 @@
 :host { display: block; }
+
+.who-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.who-email {
+  display: block;
+  font-size: 0.72rem;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.sidebar-btn {
+  flex: 1;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 550;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sidebar-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.sidebar-btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.sidebar-btn.signout:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.2);
+  border-color: rgba(248, 113, 113, 0.4);
+  color: #fca5a5;
+}
+
+.sidebar-pw-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-pw-form input {
+  width: 100%;
+  background: #0d172e;
+  color: #f1f5f9;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+}
+
+.sidebar-msg {
+  font-size: 0.76rem;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.sidebar-msg.ok {
+  background: rgba(37, 99, 235, 0.25);
+  color: #bfdbfe;
+}
+
+.sidebar-msg.err {
+  background: rgba(220, 38, 38, 0.25);
+  color: #fecaca;
+}

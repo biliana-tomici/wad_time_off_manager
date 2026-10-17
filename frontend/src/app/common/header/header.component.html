@@ -5,7 +5,10 @@
   </div>
   @if (session.offline()) {
     <span class="pill pill-off">Offline</span>
-  } @else if (session.ready()) {
-    <span class="pill pill-live">{{ session.roleLabel() }} · {{ fullName(session.current()) }}</span>
+  } @else if (session.ready() && session.current()) {
+    <div class="row-actions" style="align-items: center;">
+      <span class="pill pill-live">{{ session.roleLabel() }} · {{ fullName(session.current()) }}</span>
+      <button type="button" class="btn ghost" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;" (click)="session.logout()">Sign out</button>
+    </div>
   }
 </header>

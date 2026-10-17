@@ -1,10 +1,14 @@
-<div class="app-shell">
-  <app-sidebar></app-sidebar>
-  <main class="main-content">
-    <app-header></app-header>
-    @if (session.ready() && session.offline()) {
-      <div class="banner error">The backend API is not responding. Please start the backend service, then refresh.</div>
-    }
-    <router-outlet></router-outlet>
-  </main>
-</div>
+@if (isLoginView()) {
+  <router-outlet></router-outlet>
+} @else {
+  <div class="app-shell">
+    <app-sidebar></app-sidebar>
+    <main class="main-content">
+      <app-header></app-header>
+      @if (session.ready() && session.offline()) {
+        <div class="banner error">The backend API is not responding. Please start the backend service, then refresh.</div>
+      }
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+}

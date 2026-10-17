@@ -27,13 +27,26 @@ import com.project.timeOffManager.service.RequestService;
 import com.project.timeOffManager.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
+
+import com.project.timeOffManager.dto.AuthResponseDto;
+import com.project.timeOffManager.dto.command.ChangePasswordCommand;
+import com.project.timeOffManager.dto.command.LoginCommand;
+import com.project.timeOffManager.entity.User;
+import com.project.timeOffManager.repository.UserRepository;
+import com.project.timeOffManager.security.AuthenticatedUser;
+import com.project.timeOffManager.security.JwtService;
+import com.project.timeOffManager.service.AuthService;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -41,8 +54,11 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
+@AutoConfigureMockMvc
 @Transactional
 class TimeOffManagerApplicationTests {
 
@@ -64,14 +80,33 @@ class TimeOffManagerApplicationTests {
 	@Autowired
 	private com.project.timeOffManager.service.CalendarService calendarService;
 
+	@Autowired
+	private AuthService authService;
+
+	@Autowired
+	private JwtService jwtService;
+
+	@Autowired
+	private UserRepository userRepository;
+
+	@Autowired
+	private MockMvc mockMvc;
+
 	private void asUser(long userId, Runnable action) {
-		MockHttpServletRequest request = new MockHttpServletRequest();
-		request.addHeader("X-User-Id", String.valueOf(userId));
-		RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+		User user = userRepository.findCustomerById(userId);
+		assertNotNull(user, "Test user must exist: " + userId);
+		String token = jwtService.generateToken(user);
+		AuthenticatedUser principal = jwtService.parseToken(token).orElseThrow();
+		UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+				principal,
+				token,
+				List.of(new SimpleGrantedAuthority("ROLE_" + principal.role().name()))
+		);
+		SecurityContextHolder.getContext().setAuthentication(auth);
 		try {
 			action.run();
 		} finally {
-			RequestContextHolder.resetRequestAttributes();
+			SecurityContextHolder.clearContext();
 		}
 	}
 
@@ -396,5 +431,69 @@ class TimeOffManagerApplicationTests {
 					.filter(c -> c.date().getDayOfWeek() == DayOfWeek.SATURDAY || c.date().getDayOfWeek() == DayOfWeek.SUNDAY)
 					.noneMatch(com.project.timeOffManager.dto.CalendarProjectCoverageDto::understaffed));
 		});
+	}
+
+	@Test
+	void phase3_loginJwtAuthenticationAndPasswordManagement() throws Exception {
+		// 1. Unauthenticated calls to protected endpoints return 401 Unauthorized
+		mockMvc.perform(get("/api/users"))
+				.andExpect(status().isUnauthorized());
+
+		mockMvc.perform(get("/api/auth/me"))
+				.andExpect(status().isUnauthorized());
+
+		// Legacy X-User-Id header is no longer supported -> still 401 Unauthorized
+		mockMvc.perform(get("/api/users").header("X-User-Id", "1"))
+				.andExpect(status().isUnauthorized());
+
+		// 2. Invalid login credentials return 401 Unauthorized
+		mockMvc.perform(post("/api/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"email\":\"alice.smith@timeoff.com\",\"password\":\"wrongpass\"}"))
+				.andExpect(status().isUnauthorized());
+
+		// 3. Valid login returns signed JWT token and user profile
+		AuthResponseDto adminAuth = authService.login(new LoginCommand("alice.smith@timeoff.com", "password123"));
+		assertNotNull(adminAuth.token());
+		assertEquals("Bearer", adminAuth.tokenType());
+		assertEquals("alice.smith@timeoff.com", adminAuth.user().email());
+		assertEquals(Role.ADMIN, adminAuth.user().role());
+
+		// 4. GET /api/auth/me with Bearer token returns user + role
+		mockMvc.perform(get("/api/auth/me")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + adminAuth.token()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.email").value("alice.smith@timeoff.com"))
+				.andExpect(jsonPath("$.role").value("ADMIN"));
+
+		// 5. Role-based method security over HTTP with real JWT tokens
+		AuthResponseDto employeeAuth = authService.login(new LoginCommand("eve.davis@timeoff.com", "password123"));
+		mockMvc.perform(post("/api/users")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + employeeAuth.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"firstName\":\"Test\",\"lastName\":\"User\",\"email\":\"test.user@timeoff.com\",\"role\":\"EMPLOYEE\"}"))
+				.andExpect(status().isForbidden());
+
+		// 6. User can change own password (3.6)
+		asUser(5L, () -> {
+			assertThrows(BusinessRuleException.class, () ->
+					authService.changeOwnPassword(new ChangePasswordCommand("wrongcurrent", "newSecret123")));
+			authService.changeOwnPassword(new ChangePasswordCommand("password123", "newSecret123"));
+		});
+		// Old password fails, new password succeeds
+		assertThrows(org.springframework.security.core.AuthenticationException.class, () ->
+				authService.login(new LoginCommand("eve.davis@timeoff.com", "password123")));
+		AuthResponseDto eveReAuth = authService.login(new LoginCommand("eve.davis@timeoff.com", "newSecret123"));
+		assertNotNull(eveReAuth.token());
+
+		// 7. Admin can reset another user's password (3.6)
+		mockMvc.perform(put("/api/users/5/password")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + adminAuth.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"newPassword\":\"adminReset789\"}"))
+				.andExpect(status().isNoContent());
+
+		AuthResponseDto eveAfterReset = authService.login(new LoginCommand("eve.davis@timeoff.com", "adminReset789"));
+		assertNotNull(eveAfterReset.token());
 	}
 }

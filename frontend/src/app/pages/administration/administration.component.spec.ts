@@ -19,11 +19,12 @@ describe('AdministrationComponent', () => {
 
     api = TestBed.inject(ApiService);
     session = TestBed.inject(SessionService);
+    const adminUser = { id: 1, firstName: 'Alice', lastName: 'Smith', email: 'alice.smith@timeoff.com', role: 'ADMIN' as const, manager: null };
     session.users.set([
-      { id: 1, firstName: 'Alice', lastName: 'Smith', role: 'ADMIN', manager: null },
-      { id: 2, firstName: 'Bob', lastName: 'Johnson', role: 'MANAGER', manager: { id: 1, firstName: 'Alice', lastName: 'Smith' } },
+      adminUser,
+      { id: 2, firstName: 'Bob', lastName: 'Johnson', email: 'bob.johnson@timeoff.com', role: 'MANAGER', manager: { id: 1, firstName: 'Alice', lastName: 'Smith' } },
     ]);
-    session.select(1);
+    session.current.set(adminUser);
 
     fixture = TestBed.createComponent(AdministrationComponent);
     component = fixture.componentInstance;
@@ -34,7 +35,7 @@ describe('AdministrationComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('supports editing user role/manager and managing allowances', () => {
+  it('supports editing user role/manager/email, resetting password, and managing allowances', () => {
     spyOn(api, 'balances').and.returnValue(of([
       { id: 2, employeeId: 2, name: 'Vacation', daysLeft: 10, maxDays: 20 }
     ]));
@@ -42,9 +43,11 @@ describe('AdministrationComponent', () => {
       id: 2,
       firstName: 'Bobby',
       lastName: 'Johnson',
+      email: 'bobby.johnson@timeoff.com',
       role: 'ADMIN',
       manager: null,
     }));
+    const resetPasswordSpy = spyOn(api, 'resetUserPassword').and.returnValue(of(void 0));
     const updateBalanceSpy = spyOn(api, 'updateBalance').and.returnValue(of({
       id: 2,
       employeeId: 2,
@@ -59,6 +62,7 @@ describe('AdministrationComponent', () => {
     component.editUserForm.setValue({
       firstName: 'Bobby',
       lastName: 'Johnson',
+      email: 'bobby.johnson@timeoff.com',
       role: 'ADMIN',
       managerId: '',
     });
@@ -66,9 +70,15 @@ describe('AdministrationComponent', () => {
     expect(updateUserSpy).toHaveBeenCalledWith(2, {
       firstName: 'Bobby',
       lastName: 'Johnson',
+      email: 'bobby.johnson@timeoff.com',
       role: 'ADMIN',
       clearManager: true,
     });
+
+    component.startResetPassword(2);
+    component.resetPasswordForm.setValue({ newPassword: 'newSecretPassword' });
+    component.saveResetPassword(2);
+    expect(resetPasswordSpy).toHaveBeenCalledWith(2, 'newSecretPassword');
 
     component.selectUserForBalances(2);
     component.startEditBalance(component.balances()[0]);

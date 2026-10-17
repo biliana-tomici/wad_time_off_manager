@@ -54,20 +54,48 @@
   </nav>
 
   <div class="user-card">
-    <label class="switcher">
-      Viewing as
-      <select [value]="'' + (session.current()?.id ?? '')" (change)="pick($event)" [disabled]="session.users().length === 0">
-        @for (user of session.users(); track user.id) {
-          <option [value]="user.id">{{ user.firstName }} {{ user.lastName }}</option>
-        }
-      </select>
-    </label>
     <div class="who">
       <span class="avatar">{{ initials(session.current()) }}</span>
-      <div>
+      <div class="who-meta">
         <strong>{{ fullName(session.current()) }}</strong>
         <small>{{ session.roleLabel() }}</small>
+        @if (session.current()?.email) {
+          <small class="who-email">{{ session.current()?.email }}</small>
+        }
       </div>
     </div>
+
+    @if (passwordNotice()) {
+      <div class="sidebar-msg ok">{{ passwordNotice() }}</div>
+    }
+    @if (passwordError()) {
+      <div class="sidebar-msg err">{{ passwordError() }}</div>
+    }
+
+    @if (showPasswordForm()) {
+      <form class="sidebar-pw-form" [formGroup]="passwordForm" (ngSubmit)="savePassword()">
+        <input
+          type="password"
+          formControlName="currentPassword"
+          placeholder="Current password"
+          autocomplete="current-password"
+        />
+        <input
+          type="password"
+          formControlName="newPassword"
+          placeholder="New password (min 6)"
+          autocomplete="new-password"
+        />
+        <div class="sidebar-actions">
+          <button type="submit" class="sidebar-btn primary" [disabled]="savingPassword()">Save</button>
+          <button type="button" class="sidebar-btn" (click)="togglePasswordForm()">Cancel</button>
+        </div>
+      </form>
+    } @else {
+      <div class="sidebar-actions">
+        <button type="button" class="sidebar-btn" (click)="togglePasswordForm()">Password</button>
+        <button type="button" class="sidebar-btn signout" (click)="logout()">Sign out</button>
+      </div>
+    }
   </div>
 </aside>

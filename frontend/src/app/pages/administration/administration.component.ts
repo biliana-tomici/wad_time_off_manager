@@ -21,6 +21,7 @@ export class AdministrationComponent {
   readonly notice = signal('');
   readonly confirmId = signal<number | null>(null);
   readonly editingUserId = signal<number | null>(null);
+  readonly resettingPasswordUserId = signal<number | null>(null);
 
   readonly selectedUserId = signal<number | null>(null);
   readonly balances = signal<Balance[]>([]);
@@ -33,6 +34,8 @@ export class AdministrationComponent {
   readonly userForm = this.fb.nonNullable.group({
     firstName: ['', Validators.required],
     lastName: ['', Validators.required],
+    email: ['', [Validators.email]],
+    password: [''],
     role: ['EMPLOYEE' as Role, Validators.required],
     managerId: [''],
   });
@@ -40,8 +43,13 @@ export class AdministrationComponent {
   readonly editUserForm = this.fb.nonNullable.group({
     firstName: ['', Validators.required],
     lastName: ['', Validators.required],
+    email: ['', [Validators.required, Validators.email]],
     role: ['EMPLOYEE' as Role, Validators.required],
     managerId: [''],
+  });
+
+  readonly resetPasswordForm = this.fb.nonNullable.group({
+    newPassword: ['', [Validators.required, Validators.minLength(6)]]
   });
 
   readonly balanceForm = this.fb.nonNullable.group({
@@ -73,18 +81,31 @@ export class AdministrationComponent {
     this.error.set('');
     this.notice.set('');
     const value = this.userForm.getRawValue();
-    const body: { firstName: string; lastName: string; role: Role; managerId?: number } = {
+    const body: {
+      firstName: string;
+      lastName: string;
+      email?: string;
+      password?: string;
+      role: Role;
+      managerId?: number;
+    } = {
       firstName: value.firstName.trim(),
       lastName: value.lastName.trim(),
       role: value.role,
     };
+    if (value.email.trim()) {
+      body.email = value.email.trim();
+    }
+    if (value.password.trim()) {
+      body.password = value.password.trim();
+    }
     if (value.managerId) {
       body.managerId = Number(value.managerId);
     }
     this.api.createUser(body).subscribe({
       next: () => {
         this.notice.set('Person added.');
-        this.userForm.reset({ firstName: '', lastName: '', role: 'EMPLOYEE', managerId: '' });
+        this.userForm.reset({ firstName: '', lastName: '', email: '', password: '', role: 'EMPLOYEE', managerId: '' });
         this.session.load();
       },
       error: (err) => this.error.set(errorText(err))
@@ -94,10 +115,12 @@ export class AdministrationComponent {
   startEditUser(user: AppUser): void {
     this.error.set('');
     this.notice.set('');
+    this.resettingPasswordUserId.set(null);
     this.editingUserId.set(user.id);
     this.editUserForm.reset({
       firstName: user.firstName,
       lastName: user.lastName,
+      email: user.email ?? '',
       role: user.role ?? 'EMPLOYEE',
       managerId: user.manager?.id ? String(user.manager.id) : '',
     });
@@ -116,12 +139,14 @@ export class AdministrationComponent {
     const body: {
       firstName: string;
       lastName: string;
+      email: string;
       role: Role;
       managerId?: number | null;
       clearManager?: boolean;
     } = {
       firstName: value.firstName.trim(),
       lastName: value.lastName.trim(),
+      email: value.email.trim(),
       role: value.role,
     };
     if (value.managerId) {
@@ -136,6 +161,33 @@ export class AdministrationComponent {
         this.editingUserId.set(null);
         this.notice.set('User updated.');
         this.session.load();
+      },
+      error: (err) => this.error.set(errorText(err))
+    });
+  }
+
+  startResetPassword(userId: number): void {
+    this.error.set('');
+    this.notice.set('');
+    this.editingUserId.set(null);
+    this.resettingPasswordUserId.set(userId);
+    this.resetPasswordForm.reset({ newPassword: '' });
+  }
+
+  cancelResetPassword(): void {
+    this.resettingPasswordUserId.set(null);
+  }
+
+  saveResetPassword(userId: number): void {
+    this.resetPasswordForm.markAllAsTouched();
+    if (this.resetPasswordForm.invalid) return;
+    this.error.set('');
+    this.notice.set('');
+    const { newPassword } = this.resetPasswordForm.getRawValue();
+    this.api.resetUserPassword(userId, newPassword).subscribe({
+      next: () => {
+        this.resettingPasswordUserId.set(null);
+        this.notice.set('User password has been reset.');
       },
       error: (err) => this.error.set(errorText(err))
     });

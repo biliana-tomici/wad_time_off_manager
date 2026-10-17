@@ -11,6 +11,9 @@ export const roleGuard = (allowedRoles: Role[]): CanActivateFn => {
     const router = inject(Router);
 
     const check = () => {
+      if (!session.isAuthenticated()) {
+        return router.createUrlTree(['/login']);
+      }
       const role = session.role();
       return role && allowedRoles.includes(role) ? true : router.createUrlTree(['/home']);
     };

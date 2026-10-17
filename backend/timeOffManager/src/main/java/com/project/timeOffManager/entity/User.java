@@ -19,6 +19,13 @@ public class User {
 
     private String lastName;
 
+    @Column(nullable = false, unique = true)
+    private String email;
+
+    @JsonIgnore
+    @Column(name = "password_hash", nullable = false)
+    private String passwordHash;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role = Role.EMPLOYEE;
@@ -50,6 +57,15 @@ public class User {
     public User(String firstName, String lastName, User manager, Role role) {
         this.firstName = firstName;
         this.lastName = lastName;
+        this.manager = manager;
+        this.role = role != null ? role : Role.EMPLOYEE;
+    }
+
+    public User(String firstName, String lastName, String email, String passwordHash, User manager, Role role) {
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.email = email;
+        this.passwordHash = passwordHash;
         this.manager = manager;
         this.role = role != null ? role : Role.EMPLOYEE;
     }
@@ -115,6 +131,22 @@ public class User {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
     }
 
     @Override

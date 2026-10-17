@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -39,6 +40,7 @@ public class BalanceController {
     @Operation(summary = "Create a new balance")
     @ApiResponse(responseCode = "201", description = "Balance created successfully")
     @ApiResponse(responseCode = "400", description = "Invalid balance data")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<BalanceDto> createBalance(
             @Parameter(description = "The balance object to be created", required = true)
@@ -51,6 +53,7 @@ public class BalanceController {
     @ApiResponse(responseCode = "200", description = "Balance updated successfully")
     @ApiResponse(responseCode = "400", description = "Invalid balance data")
     @ApiResponse(responseCode = "404", description = "Balance not found")
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<BalanceDto> updateBalance(
             @Parameter(description = "ID of the balance to update", required = true)
@@ -64,6 +67,7 @@ public class BalanceController {
     @Operation(summary = "Delete a balance by ID")
     @ApiResponse(responseCode = "204", description = "Balance deleted successfully")
     @ApiResponse(responseCode = "404", description = "Balance not found")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteBalance(
             @Parameter(description = "ID of the balance to delete", required = true)

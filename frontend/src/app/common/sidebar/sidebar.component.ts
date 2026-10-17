@@ -1,7 +1,9 @@
-import { Component, computed, inject } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, computed, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink, RouterLinkActive } from '@angular/router';
+import { ApiService } from '../../services/api.service';
 import { SessionService } from '../../services/session.service';
-import { fullName, initials } from '../../format';
+import { errorText, fullName, initials } from '../../format';
 import { Role } from '../../models';
 
 interface NavItem {
@@ -15,15 +17,26 @@ interface NavItem {
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive],
+  imports: [RouterLink, RouterLinkActive, ReactiveFormsModule],
   templateUrl: './sidebar.component.html',
   styleUrl: './sidebar.component.scss'
 })
 export class SidebarComponent {
-  private readonly router = inject(Router);
+  private readonly api = inject(ApiService);
+  private readonly fb = inject(FormBuilder);
   readonly session = inject(SessionService);
   readonly fullName = fullName;
   readonly initials = initials;
+
+  readonly showPasswordForm = signal(false);
+  readonly passwordError = signal('');
+  readonly passwordNotice = signal('');
+  readonly savingPassword = signal(false);
+
+  readonly passwordForm = this.fb.nonNullable.group({
+    currentPassword: ['', Validators.required],
+    newPassword: ['', [Validators.required, Validators.minLength(6)]]
+  });
 
   readonly allItems: NavItem[] = [
     { label: 'Overview', link: '/home', exact: true, icon: 'overview' },
@@ -40,14 +53,37 @@ export class SidebarComponent {
     return this.allItems.filter((item) => !item.roles || (role && item.roles.includes(role)));
   });
 
-  pick(event: Event): void {
-    const id = Number((event.target as HTMLSelectElement).value);
-    this.session.select(id);
-    const role = this.session.role();
-    if ((this.router.url.startsWith('/approvals') || this.router.url.startsWith('/management')) && role === 'EMPLOYEE') {
-      this.router.navigate(['/home']);
-    } else if (this.router.url.startsWith('/administration') && role !== 'ADMIN') {
-      this.router.navigate(['/home']);
-    }
+  togglePasswordForm(): void {
+    this.passwordError.set('');
+    this.passwordNotice.set('');
+    this.passwordForm.reset({ currentPassword: '', newPassword: '' });
+    this.showPasswordForm.update((v) => !v);
+  }
+
+  savePassword(): void {
+    this.passwordForm.markAllAsTouched();
+    if (this.passwordForm.invalid || this.savingPassword()) return;
+
+    this.passwordError.set('');
+    this.passwordNotice.set('');
+    this.savingPassword.set(true);
+
+    const { currentPassword, newPassword } = this.passwordForm.getRawValue();
+    this.api.changePassword(currentPassword, newPassword).subscribe({
+      next: () => {
+        this.savingPassword.set(false);
+        this.showPasswordForm.set(false);
+        this.passwordNotice.set('Password updated.');
+        this.passwordForm.reset({ currentPassword: '', newPassword: '' });
+      },
+      error: (err) => {
+        this.savingPassword.set(false);
+        this.passwordError.set(errorText(err));
+      }
+    });
+  }
+
+  logout(): void {
+    this.session.logout();
   }
 }

@@ -1,0 +1,75 @@
+<div class="login-shell">
+  <div class="login-card card">
+    <div class="login-brand">
+      <span class="mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="24" height="24">
+          <rect x="5" y="7" width="22" height="20" rx="4" fill="none" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M5 13h22M11 4.5v5M21 4.5v5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <div>
+        <p class="eyebrow">Workforce Portal</p>
+        <h1>Time Off Manager</h1>
+      </div>
+    </div>
+
+    <div class="login-intro">
+      <h2>Sign in to your account</h2>
+      <p class="muted">Enter your organization email and password to manage leave requests, projects, and team availability.</p>
+    </div>
+
+    @if (session.sessionNotice()) {
+      <div class="banner warn">{{ session.sessionNotice() }}</div>
+    }
+    @if (error()) {
+      <div class="banner error">{{ error() }}</div>
+    }
+
+    <form class="stack" [formGroup]="form" (ngSubmit)="submit()">
+      <label class="field">
+        Email address
+        <input
+          type="email"
+          formControlName="email"
+          placeholder="name@timeoff.com"
+          autocomplete="username"
+        />
+        @if (form.controls.email.touched && form.controls.email.invalid) {
+          <span class="hint">Please enter a valid email address.</span>
+        }
+      </label>
+
+      <label class="field">
+        Password
+        <input
+          type="password"
+          formControlName="password"
+          placeholder="••••••••"
+          autocomplete="current-password"
+        />
+        @if (form.controls.password.touched && form.controls.password.invalid) {
+          <span class="hint">Password is required.</span>
+        }
+      </label>
+
+      <button type="submit" class="btn primary login-submit" [disabled]="loading()">
+        {{ loading() ? 'Signing in…' : 'Sign in' }}
+      </button>
+    </form>
+
+    <div class="demo-box">
+      <div class="demo-head">
+        <span class="eyebrow">Quick Demo Access</span>
+        <span class="meta">Password: <code>password123</code></span>
+      </div>
+      <div class="demo-pills">
+        @for (acc of demoAccounts; track acc.email) {
+          <button type="button" class="chip demo-chip" (click)="fillDemo(acc)">
+            <strong>{{ acc.role }}</strong>
+            <span>{{ acc.label }}</span>
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+</div>

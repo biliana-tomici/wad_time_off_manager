@@ -12,6 +12,7 @@ import java.util.List;
 public record UserDto(Long id,
                       String firstName,
                       String lastName,
+                      String email,
                       Role role,
                       List<ProjectDto> projects,
                       ManagerDto manager) implements Serializable {

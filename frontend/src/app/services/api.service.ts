@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { API_BASE } from '../api-base';
-import { AppUser, Balance, CalendarResponse, Page, Project, Status, TimePeriod, TimeRequest } from '../models';
+import { AppUser, AuthResponse, Balance, CalendarResponse, Page, Project, Status, TimePeriod, TimeRequest } from '../models';
 
 function asList<T>(source: Observable<Page<T>>): Observable<T[]> {
   return source.pipe(
@@ -14,6 +14,22 @@ function asList<T>(source: Observable<Page<T>>): Observable<T[]> {
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly http = inject(HttpClient);
+
+  login(email: string, password: string): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${API_BASE}/api/auth/login`, { email, password });
+  }
+
+  me(): Observable<AppUser> {
+    return this.http.get<AppUser>(`${API_BASE}/api/auth/me`);
+  }
+
+  changePassword(currentPassword: string, newPassword: string): Observable<void> {
+    return this.http.post<void>(`${API_BASE}/api/auth/change-password`, { currentPassword, newPassword });
+  }
+
+  resetUserPassword(userId: number, newPassword: string): Observable<void> {
+    return this.http.put<void>(`${API_BASE}/api/users/${userId}/password`, { newPassword });
+  }
 
   users(): Observable<AppUser[]> {
     return this.http.get<AppUser[]>(`${API_BASE}/api/users`);

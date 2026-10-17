@@ -28,6 +28,9 @@
                 <label class="field">Last name
                   <input formControlName="lastName" />
                 </label>
+                <label class="field wide">Email address
+                  <input type="email" formControlName="email" />
+                </label>
                 <label class="field">Role
                   <select formControlName="role">
                     @for (r of roles; track r) {
@@ -49,16 +52,34 @@
                 <button type="button" class="btn ghost" (click)="cancelEditUser()">Cancel</button>
               </div>
             </form>
+          } @else if (resettingPasswordUserId() === user.id) {
+            <form class="stack" style="padding: 12px 0; border-top: 1px solid var(--line);" [formGroup]="resetPasswordForm" (ngSubmit)="saveResetPassword(user.id)">
+              <div>
+                <b>Set new password for {{ fullName(user) }}</b>
+                <span class="sub">Minimum 6 characters.</span>
+              </div>
+              <label class="field">New password
+                <input type="password" formControlName="newPassword" placeholder="Enter new password" autocomplete="new-password" />
+              </label>
+              <div class="row-actions">
+                <button type="submit" class="btn primary">Update password</button>
+                <button type="button" class="btn ghost" (click)="cancelResetPassword()">Cancel</button>
+              </div>
+            </form>
           } @else {
             <div class="kv" style="align-items: center; border-top: 1px solid var(--line); padding: 10px 0;">
               <div>
                 <b>{{ fullName(user) }}</b>
                 <span class="pill" style="margin-left: 8px;">{{ user.role || 'EMPLOYEE' }}</span>
+                @if (user.email) {
+                  <span class="sub">{{ user.email }}</span>
+                }
                 <span class="sub">{{ user.manager ? 'Reports to ' + fullName(user.manager) : 'No manager' }}</span>
               </div>
               <div class="row-actions">
                 <button type="button" class="btn ghost" (click)="selectUserForBalances(user.id)">Allowances</button>
                 <button type="button" class="btn ghost" (click)="startEditUser(user)">Edit</button>
+                <button type="button" class="btn ghost" (click)="startResetPassword(user.id)">Password</button>
                 @if (confirmId() === user.id) {
                   <button type="button" class="btn danger" (click)="removePerson(user.id)">Confirm</button>
                 } @else {
@@ -154,6 +175,12 @@
         </label>
         <label class="field">Last name
           <input formControlName="lastName" />
+        </label>
+        <label class="field">Email address
+          <input type="email" formControlName="email" placeholder="first.last@timeoff.com (optional)" />
+        </label>
+        <label class="field">Initial password
+          <input type="password" formControlName="password" placeholder="Default: password123" autocomplete="new-password" />
         </label>
         <label class="field">Role
           <select formControlName="role">
