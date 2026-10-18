@@ -4,10 +4,13 @@ import { catchError, throwError } from 'rxjs';
 import { AUTH_TOKEN_KEY, SessionService, isJwtExpired } from '../services/session.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const isLoginRequest = req.url.includes('/api/auth/login');
+  const isPublicAuthRequest = req.url.includes('/api/auth/login')
+    || req.url.includes('/api/auth/forgot-password')
+    || req.url.includes('/api/auth/reset-password')
+    || req.url.includes('/api/auth/generate-password');
   const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
-  if (token && !isLoginRequest) {
+  if (token && !isPublicAuthRequest) {
     if (isJwtExpired(token)) {
       const session = inject(SessionService);
       session.logout('Your session has expired. Please sign in again.');
@@ -23,7 +26,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((err: unknown) => {
-      if (err instanceof HttpErrorResponse && err.status === 401 && !isLoginRequest) {
+      if (err instanceof HttpErrorResponse && err.status === 401 && !isPublicAuthRequest) {
         const session = inject(SessionService);
         session.logout('Your session has expired. Please sign in again.');
       }

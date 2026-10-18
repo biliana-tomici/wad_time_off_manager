@@ -1,0 +1,101 @@
+services:
+  # 1. Angular Frontend (Nginx serving SPA & proxying /api to backend)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: timeoff-frontend
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - timeoff-network
+
+  # 2. Spring Boot Backend (Java 25)
+  backend:
+    build:
+      context: ./backend/timeOffManager
+      dockerfile: Dockerfile
+    container_name: timeoff-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      TZ: ${TZ:-Europe/Bucharest}
+      # Database: defaults to local 'postgres' container, overridable via .env for AWS RDS
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/timeoff}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-postgres}
+      # Security & JWT
+      JWT_SECRET: ${JWT_SECRET:-time-off-manager-prod-jwt-secret-key-override-via-env-var-256-bits}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-28800000}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+      # Email: defaults to local 'mailpit' container, overridable via .env for AWS SES
+      MAIL_HOST: ${MAIL_HOST:-mailpit}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-false}
+      MAIL_SMTP_STARTTLS: ${MAIL_SMTP_STARTTLS:-false}
+      MAIL_ENABLED: ${MAIL_ENABLED:-true}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@timeoff.com}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      # Initial Admin bootstrapping when database is empty
+      APP_ADMIN_EMAIL: ${APP_ADMIN_EMAIL:-alice.smith@timeoff.com}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:-password123}
+      APP_ADMIN_FIRST_NAME: ${APP_ADMIN_FIRST_NAME:-Alice}
+      APP_ADMIN_LAST_NAME: ${APP_ADMIN_LAST_NAME:-Smith}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - timeoff-network
+
+  # 3. Local PostgreSQL 16 database for local testing and parity
+  postgres:
+    image: postgres:16-alpine
+    container_name: timeoff-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-timeoff}
+      POSTGRES_USER: ${SPRING_DATASOURCE_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SPRING_DATASOURCE_USERNAME:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - timeoff-network
+
+  # 4. Mailpit (Mock SMTP server & Web inbox at http://localhost:8025)
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: timeoff-mailpit
+    ports:
+      - "1025:1025"   # SMTP port
+      - "8025:8025"   # Web UI port
+    restart: unless-stopped
+    networks:
+      - timeoff-network
+
+networks:
+  timeoff-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

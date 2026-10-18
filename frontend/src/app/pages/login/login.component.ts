@@ -5,12 +5,6 @@ import { ApiService } from '../../services/api.service';
 import { SessionService } from '../../services/session.service';
 import { errorText } from '../../format';
 
-interface DemoAccount {
-  label: string;
-  role: string;
-  email: string;
-}
-
 @Component({
   selector: 'app-login',
   standalone: true,
@@ -28,13 +22,6 @@ export class LoginComponent {
   readonly error = signal('');
   readonly forgotMode = signal(false);
   readonly forgotNotice = signal('');
-  readonly issuedResetToken = signal<string | null>(null);
-
-  readonly demoAccounts: DemoAccount[] = [
-    { label: 'Alice Smith', role: 'Admin', email: 'alice.smith@timeoff.com' },
-    { label: 'Bob Johnson', role: 'Manager', email: 'bob.johnson@timeoff.com' },
-    { label: 'Eve Davis', role: 'Employee', email: 'eve.davis@timeoff.com' },
-  ];
 
   readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -48,24 +35,12 @@ export class LoginComponent {
   toggleForgotMode(): void {
     this.error.set('');
     this.forgotNotice.set('');
-    this.issuedResetToken.set(null);
     this.session.sessionNotice.set('');
     const currentEmail = this.form.controls.email.value;
     if (!this.forgotMode() && currentEmail) {
       this.forgotForm.controls.email.setValue(currentEmail);
     }
     this.forgotMode.update((v) => !v);
-  }
-
-  fillDemo(account: DemoAccount): void {
-    this.error.set('');
-    this.forgotMode.set(false);
-    this.session.sessionNotice.set('');
-    this.form.setValue({
-      email: account.email,
-      password: 'password123'
-    });
-    this.submit();
   }
 
   submit(): void {
@@ -95,7 +70,6 @@ export class LoginComponent {
 
     this.error.set('');
     this.forgotNotice.set('');
-    this.issuedResetToken.set(null);
     this.loading.set(true);
 
     const { email } = this.forgotForm.getRawValue();
@@ -103,9 +77,6 @@ export class LoginComponent {
       next: (res) => {
         this.loading.set(false);
         this.forgotNotice.set(res.message);
-        if (res.resetToken) {
-          this.issuedResetToken.set(res.resetToken);
-        }
       },
       error: (err) => {
         this.loading.set(false);

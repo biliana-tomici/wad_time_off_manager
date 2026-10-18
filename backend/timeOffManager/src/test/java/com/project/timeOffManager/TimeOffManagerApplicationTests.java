@@ -550,14 +550,17 @@ class TimeOffManagerApplicationTests {
 		emailService.clearSentEmails();
 		com.project.timeOffManager.dto.ForgotPasswordResponseDto forgotRes =
 				authService.requestPasswordReset("diana.prince@timeoff.com");
-		assertNotNull(forgotRes.resetToken());
+		assertNull(forgotRes.resetToken());
+		assertNull(forgotRes.resetLink());
 		assertEquals(1, emailService.getSentEmails().size());
+		String tokenFromEmail = emailService.getSentEmails().getFirst().resetToken();
+		assertNotNull(tokenFromEmail);
 
 		// Reset using token + generateRandomPassword=true
 		emailService.clearSentEmails();
 		mockMvc.perform(post("/api/auth/reset-password")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"token\":\"" + forgotRes.resetToken() + "\",\"generateRandomPassword\":true}"))
+						.content("{\"token\":\"" + tokenFromEmail + "\",\"generateRandomPassword\":true}"))
 				.andExpect(status().isNoContent());
 
 		assertEquals(1, emailService.getSentEmails().size());

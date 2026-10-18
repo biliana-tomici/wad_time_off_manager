@@ -144,8 +144,8 @@ public class AuthService {
 
         return new ForgotPasswordResponseDto(
                 FORGOT_PASSWORD_NOTICE,
-                tokenValue,
-                emailService.buildResetLink(tokenValue)
+                null,
+                null
         );
     }
 
