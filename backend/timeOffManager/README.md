@@ -8,12 +8,16 @@ Spring Boot 3 REST API service powering the Time Off Manager platform.
 
 - **Language:** Java 25
 - **Framework:** Spring Boot 3.5.6
+- **Security:** Spring Security (Stateless JWT authentication, BCrypt password hashing, method-level `@PreAuthorize` authorization)
+- **Email Service:** Spring Mail integrated with Mailpit (local) and AWS SES (production)
+- **Monitoring & Health:** Spring Boot Actuator (`/actuator/health`)
 - **Persistence:** Spring Data JPA, Hibernate 6.6
-- **Database:** H2 Database (in-memory)
+- **Database Migrations:** Flyway 11 (`flyway-core`, `flyway-database-postgresql`)
+- **Databases:** PostgreSQL 16 (production profile), H2 In-Memory (local dev/tests)
 - **Object Mapping:** MapStruct 1.6.3
 - **Validation:** `spring-boot-starter-validation` (Jakarta Validation)
 - **PDF Generation:** LibrePDF OpenPDF 2.0.3
-- **Documentation:** Springdoc OpenAPI 2.8.13 (Swagger UI)
+- **Documentation:** Springdoc OpenAPI 2.8.13 (Swagger UI, active in dev profile)
 - **Error Handling:** RFC 7807 `ProblemDetail` via `@RestControllerAdvice`
 
 ---
@@ -21,7 +25,7 @@ Spring Boot 3 REST API service powering the Time Off Manager platform.
 ## Prerequisites
 
 - **Java JDK 25** installed and set as `JAVA_HOME`
-- **Apache Maven 3.9+**
+- **Apache Maven 3.9+** (or use bundled Maven wrapper)
 
 ---
 
@@ -35,81 +39,81 @@ From this directory (`backend/timeOffManager`):
 mvn clean test-compile
 ```
 
-### 2. Run the Application
+### 2. Run the Application (Local Profile)
 
 ```bash
 mvn spring-boot:run
 ```
 
-The application starts on port `8080`.
+The application starts on port `8080` with the `local` profile (in-memory H2, seed data, and Swagger enabled):
 
 - **API Base URL:** `http://localhost:8080/api`
+- **Health Check:** `http://localhost:8080/actuator/health`
 - **Swagger UI:** [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
-- **OpenAPI Schema (JSON):** [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
-- **H2 Database Console:** [http://localhost:8080/h2-console](http://localhost:8080/h2-console)
-  - JDBC URL: `jdbc:h2:mem:testdb`
-  - User: `sa`
-  - Password: *(leave blank)*
+- **H2 Database Console:** [http://localhost:8080/h2-console](http://localhost:8080/h2-console) (JDBC URL: `jdbc:h2:mem:testdb`, User: `sa`, Password: empty)
 
 ---
 
 ## Core REST Endpoints
 
-### 1. Requests (`/api/request`)
+### 1. Authentication (`/api/auth`)
+- `POST /api/auth/login`: Authenticate with email and password; returns JWT token and user info.
+- `POST /api/auth/forgot-password`: Request a secure password reset link sent via email.
+- `POST /api/auth/reset-password`: Set a new password using a one-time reset token.
+- `GET /api/auth/generate-password`: Generate a strong temporary password.
+
+### 2. Requests (`/api/request`)
 - `GET /api/request/{id}`: Get request details by ID.
 - `POST /api/request`: Submit a new leave request (enforces start <= end, Mon-Fri working days, non-overlapping requests, and balance sufficiency).
 - `PUT /api/request/{id}`: Edit pending/edited request (revalidates dates and balance).
 - `PATCH /api/request/{id}/status?status={STATUS}`: Transition request status according to business state machine.
 - `DELETE /api/request/{id}`: Delete request.
-- `GET /api/request/pending/{managerId}?includeUnassigned={boolean}`: Get pending/edited requests for direct reports (or unassigned users if `includeUnassigned=true`).
+- `GET /api/request/pending/{managerId}?includeUnassigned={boolean}`: Get pending/edited requests for direct reports.
 - `GET /api/request/employee/{employeeId}`: Get paginated requests for an employee.
 
-### 2. Balances (`/api/balance`)
+### 3. Balances (`/api/balance`)
 - `GET /api/balance/{id}`: Retrieve balance allowance.
-- `POST /api/balance`: Create an allowance for an employee.
+- `POST /api/balance`: Create an allowance for an employee (Admin only).
 - `PUT /api/balance/{id}`: In-place update of allowance (`name`, `daysLeft`, `maxDays`).
 - `DELETE /api/balance/{id}`: Safely unlink and delete an allowance.
 - `GET /api/balance/employee/{employeeId}`: Get allowances for an employee.
 
-### 3. Projects (`/api/projects`)
-- `GET /api/projects`: List all projects.
+### 4. Projects (`/api/projects`)
+- `GET /api/projects`: List projects.
 - `GET /api/projects/{id}`: Get project details.
 - `POST /api/projects`: Create project.
-- `PUT /api/projects/{id}`: Update project.
+- `PUT /api/projects/{id}`: Update project details and `minEmp` staffing threshold.
 - `DELETE /api/projects/{id}`: Delete project.
 - `GET /api/projects/{id}/members`: List all members assigned to project.
 - `POST /api/projects/{id}/members/{employeeId}`: Add employee to project.
 - `DELETE /api/projects/{id}/members/{employeeId}`: Remove employee from project.
 
-### 4. Users (`/api/customer`)
-- `GET /api/customer`: List all employees/managers/admins.
+### 5. Users (`/api/customer`)
+- `GET /api/customer`: List employees/managers/admins.
 - `GET /api/customer/{id}`: Get user by ID.
-- `POST /api/customer`: Create user.
-- `PUT /api/customer/{id}`: Update user.
-- `DELETE /api/customer/{id}`: Safely unlink subordinates/projects and delete user.
+- `POST /api/customer`: Create user (sends welcome email with initial setup credentials).
+- `PUT /api/customer/{id}`: Update user, roles, and reporting lines.
+- `DELETE /api/customer/{id}`: Soft-delete user (`active=false`) preserving leave history.
+- `POST /api/customer/{id}/reset-password`: Admin triggers password reset email.
 
-### 5. Reports (`/api/report`)
-- `GET /api/report/project/{projectId}/pdf?timePeriod={LAST_WEEK|LAST_MONTH|LAST_YEAR}`: Generate project PDF availability report based on approved leave requests covering the period.
+### 6. Team Absence Calendar (`/api/calendar`)
+- `GET /api/calendar?from={date}&to={date}&projectId={id}`: Get team absences and coverage for month grid.
+
+### 7. Reports (`/api/report`)
+- `GET /api/report/project/{projectId}/pdf?timePeriod={WEEKLY|MONTHLY|YEARLY}`: Generate PDF availability report.
 
 ---
 
 ## Business Logic & State Machine
 
-1. **Leave Day Calculation:**
-   - Evaluated as working days (Monday through Friday only, excluding weekends).
-2. **Balance Deduction:**
-   - Approving a request (`PENDING/EDITED -> APPROVED`) atomically deducts requested working days from the balance.
-   - Cancelling an approved request (`APPROVED -> CANCELLED`) restores the deducted working days.
-3. **Allowed Status Transitions:**
-   - `PENDING` / `EDITED` $\rightarrow$ `APPROVED`, `REJECTED`, or `CANCELLED`.
-   - `APPROVED` $\rightarrow$ `CANCELLED`.
-   - `REJECTED` and `CANCELLED` are terminal states.
-4. **Error Handling (RFC 7807):**
-   - Violations return structured `ProblemDetail` responses with `title`, `status`, `detail`, and `timestamp` (e.g. `400 Bad Request`, `404 Not Found`, `409 Conflict`).
+1. **Working Days Calculation:** Evaluated Monday through Friday, excluding weekends.
+2. **Atomic Balance Deductions:** Approvals atomically decrement days from balance; cancellations restore days.
+3. **Optimistic Locking:** `balance.version` prevents concurrent lost-update anomalies during simultaneous approvals.
+4. **Soft-Delete Integrity:** Deactivated users retain full historical requests and audit trails.
 
 ---
 
-## Testing
+## Running Automated Tests
 
 ```bash
 mvn test
