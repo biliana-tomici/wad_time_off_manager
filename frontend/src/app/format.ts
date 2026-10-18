@@ -134,3 +134,42 @@ export function errorText(err: unknown): string {
   return 'Something went wrong.';
 }
 
+export function generateSecurePassword(length = 12): string {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghijkmnopqrstuvwxyz';
+  const digits = '23456789';
+  const special = '!@#$%^&*-_=+';
+  const all = upper + lower + digits + special;
+  const finalLength = Math.max(8, length);
+
+  const randomIndex = (max: number): number => {
+    if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+      const buf = new Uint32Array(1);
+      crypto.getRandomValues(buf);
+      return buf[0] % max;
+    }
+    return Math.floor(Math.random() * max);
+  };
+
+  const chars: string[] = [
+    upper[randomIndex(upper.length)],
+    lower[randomIndex(lower.length)],
+    digits[randomIndex(digits.length)],
+    special[randomIndex(special.length)],
+  ];
+
+  for (let i = 4; i < finalLength; i++) {
+    chars.push(all[randomIndex(all.length)]);
+  }
+
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomIndex(i + 1);
+    const tmp = chars[i];
+    chars[i] = chars[j];
+    chars[j] = tmp;
+  }
+
+  return chars.join('');
+}
+
+

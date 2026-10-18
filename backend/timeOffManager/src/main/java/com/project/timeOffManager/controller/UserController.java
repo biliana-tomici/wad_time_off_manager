@@ -74,7 +74,7 @@ public class UserController {
     public ResponseEntity<Void> resetUserPassword(@Parameter(description = "ID of the user")
                                                   @PathVariable("id") Long id,
                                                   @Valid @RequestBody ResetPasswordCommand command) {
-        userService.resetUserPassword(id, command.newPassword());
+        userService.resetUserPassword(id, command);
         return ResponseEntity.noContent().build();
     }
 

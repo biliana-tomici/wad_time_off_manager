@@ -2,19 +2,25 @@ package com.project.timeOffManager.service;
 
 import com.project.timeOffManager.dto.UserDto;
 import com.project.timeOffManager.dto.command.CreateUserCommand;
+import com.project.timeOffManager.dto.command.ResetPasswordCommand;
 import com.project.timeOffManager.dto.command.UpdateUserCommand;
+import com.project.timeOffManager.entity.PasswordResetToken;
 import com.project.timeOffManager.entity.Project;
 import com.project.timeOffManager.entity.User;
 import com.project.timeOffManager.mapper.UserMapper;
+import com.project.timeOffManager.repository.PasswordResetTokenRepository;
 import com.project.timeOffManager.repository.ProjectRepository;
 import com.project.timeOffManager.repository.UserRepository;
 import com.project.timeOffManager.exception.BusinessRuleException;
 import com.project.timeOffManager.exception.ResourceNotFoundException;
 import com.project.timeOffManager.security.AuthorizationService;
+import com.project.timeOffManager.security.PasswordGenerator;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -22,23 +28,33 @@ import java.util.List;
 public class UserService {
 
     public static final String DEFAULT_INITIAL_PASSWORD = "password123";
+    private static final Duration RESET_TOKEN_TTL = Duration.ofHours(24);
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final ProjectRepository projectRepository;
     private final AuthorizationService authorizationService;
     private final PasswordEncoder passwordEncoder;
+    private final PasswordGenerator passwordGenerator;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final EmailService emailService;
 
     public UserService(UserRepository userRepository,
                        UserMapper userMapper,
                        ProjectRepository projectRepository,
                        AuthorizationService authorizationService,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder,
+                       PasswordGenerator passwordGenerator,
+                       PasswordResetTokenRepository passwordResetTokenRepository,
+                       EmailService emailService) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
         this.projectRepository = projectRepository;
         this.authorizationService = authorizationService;
         this.passwordEncoder = passwordEncoder;
+        this.passwordGenerator = passwordGenerator;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
+        this.emailService = emailService;
     }
 
     public UserDto getUserById(Long customerId) {
@@ -72,9 +88,14 @@ public class UserService {
             throw new BusinessRuleException("A user with email '" + email + "' already exists");
         }
 
-        String rawPassword = (command.password() != null && !command.password().isBlank())
-                ? command.password()
-                : DEFAULT_INITIAL_PASSWORD;
+        String rawPassword;
+        if (Boolean.TRUE.equals(command.generateRandomPassword())) {
+            rawPassword = passwordGenerator.generateSecurePassword();
+        } else if (command.password() != null && !command.password().isBlank()) {
+            rawPassword = command.password();
+        } else {
+            rawPassword = DEFAULT_INITIAL_PASSWORD;
+        }
         if (rawPassword.length() < 6) {
             throw new BusinessRuleException("Password must be at least 6 characters");
         }
@@ -82,6 +103,9 @@ public class UserService {
         User manager = command.managerId() != null ? findUser(command.managerId()) : null;
         User user = new User(firstName, lastName, email, passwordEncoder.encode(rawPassword), manager, command.role());
         User savedUser = userRepository.save(user);
+
+        String setupToken = issueResetToken(savedUser);
+        emailService.sendWelcomeEmail(savedUser, rawPassword, setupToken);
 
         return userMapper.toDto(savedUser);
     }
@@ -123,12 +147,19 @@ public class UserService {
             }
             existingUser.setEmail(newEmail);
         }
-        if (command.password() != null && !command.password().isBlank()) {
+
+        String updatedRawPassword = null;
+        if (Boolean.TRUE.equals(command.generateRandomPassword())) {
+            updatedRawPassword = passwordGenerator.generateSecurePassword();
+            existingUser.setPasswordHash(passwordEncoder.encode(updatedRawPassword));
+        } else if (command.password() != null && !command.password().isBlank()) {
             if (command.password().length() < 6) {
                 throw new BusinessRuleException("Password must be at least 6 characters");
             }
-            existingUser.setPasswordHash(passwordEncoder.encode(command.password()));
+            updatedRawPassword = command.password();
+            existingUser.setPasswordHash(passwordEncoder.encode(updatedRawPassword));
         }
+
         if (command.role() != null) {
             existingUser.setRole(command.role());
         }
@@ -141,18 +172,56 @@ public class UserService {
             existingUser.setManager(findUser(command.managerId()));
         }
 
-        return userMapper.toDto(userRepository.save(existingUser));
+        User saved = userRepository.save(existingUser);
+        if (updatedRawPassword != null) {
+            String token = issueResetToken(saved);
+            emailService.sendAdminPasswordResetEmail(saved, updatedRawPassword, token);
+        }
+
+        return userMapper.toDto(saved);
     }
 
     @Transactional
     public void resetUserPassword(Long userId, String newPassword) {
+        resetUserPassword(userId, new ResetPasswordCommand(newPassword, false));
+    }
+
+    @Transactional
+    public void resetUserPassword(Long userId, ResetPasswordCommand command) {
         authorizationService.checkCanManageUsers();
-        if (newPassword == null || newPassword.length() < 6) {
-            throw new BusinessRuleException("New password must be at least 6 characters");
+
+        String resolvedPassword;
+        if (command != null && Boolean.TRUE.equals(command.generateRandomPassword())) {
+            resolvedPassword = passwordGenerator.generateSecurePassword();
+        } else {
+            resolvedPassword = command != null ? command.newPassword() : null;
+            if (resolvedPassword == null || resolvedPassword.length() < 6) {
+                throw new BusinessRuleException("New password must be at least 6 characters");
+            }
         }
+
         User user = findUser(userId);
-        user.setPasswordHash(passwordEncoder.encode(newPassword));
-        userRepository.save(user);
+        user.setPasswordHash(passwordEncoder.encode(resolvedPassword));
+        User saved = userRepository.save(user);
+
+        String resetToken = issueResetToken(saved);
+        emailService.sendAdminPasswordResetEmail(saved, resolvedPassword, resetToken);
+    }
+
+    private String issueResetToken(User user) {
+        List<PasswordResetToken> activeTokens = passwordResetTokenRepository.findByUser_IdAndUsedFalse(user.getId());
+        for (PasswordResetToken existing : activeTokens) {
+            existing.setUsed(true);
+        }
+        if (!activeTokens.isEmpty()) {
+            passwordResetTokenRepository.saveAll(activeTokens);
+        }
+
+        Instant now = Instant.now();
+        String tokenValue = passwordGenerator.generateResetToken();
+        PasswordResetToken resetToken = new PasswordResetToken(tokenValue, user, now.plus(RESET_TOKEN_TTL), now);
+        passwordResetTokenRepository.save(resetToken);
+        return tokenValue;
     }
 
     private User findUser(Long userId) {
@@ -188,6 +257,14 @@ public class UserService {
             if (proj.getEmployees() != null && proj.getEmployees().removeIf(u -> customerId.equals(u.getId()))) {
                 projectRepository.save(proj);
             }
+        }
+
+        List<PasswordResetToken> activeTokens = passwordResetTokenRepository.findByUser_IdAndUsedFalse(customerId);
+        for (PasswordResetToken token : activeTokens) {
+            token.setUsed(true);
+        }
+        if (!activeTokens.isEmpty()) {
+            passwordResetTokenRepository.saveAll(activeTokens);
         }
 
         user.setActive(false);

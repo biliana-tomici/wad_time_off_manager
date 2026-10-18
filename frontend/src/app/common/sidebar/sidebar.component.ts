@@ -3,7 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { ApiService } from '../../services/api.service';
 import { SessionService } from '../../services/session.service';
-import { errorText, fullName, initials } from '../../format';
+import { errorText, fullName, generateSecurePassword, initials } from '../../format';
 import { Role } from '../../models';
 
 interface NavItem {
@@ -29,6 +29,7 @@ export class SidebarComponent {
   readonly initials = initials;
 
   readonly showPasswordForm = signal(false);
+  readonly showNewPassword = signal(false);
   readonly passwordError = signal('');
   readonly passwordNotice = signal('');
   readonly savingPassword = signal(false);
@@ -56,8 +57,15 @@ export class SidebarComponent {
   togglePasswordForm(): void {
     this.passwordError.set('');
     this.passwordNotice.set('');
+    this.showNewPassword.set(false);
     this.passwordForm.reset({ currentPassword: '', newPassword: '' });
     this.showPasswordForm.update((v) => !v);
+  }
+
+  generateNewPassword(): void {
+    const pwd = generateSecurePassword(12);
+    this.passwordForm.controls.newPassword.setValue(pwd);
+    this.showNewPassword.set(true);
   }
 
   savePassword(): void {
@@ -73,7 +81,8 @@ export class SidebarComponent {
       next: () => {
         this.savingPassword.set(false);
         this.showPasswordForm.set(false);
-        this.passwordNotice.set('Password updated.');
+        this.showNewPassword.set(false);
+        this.passwordNotice.set('Password updated. Confirmation email sent.');
         this.passwordForm.reset({ currentPassword: '', newPassword: '' });
       },
       error: (err) => {

@@ -3,7 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
 import { SessionService } from '../../services/session.service';
 import { AppUser, Balance, Role } from '../../models';
-import { errorText, fullName } from '../../format';
+import { errorText, fullName, generateSecurePassword } from '../../format';
 
 @Component({
   selector: 'app-administration',
@@ -22,6 +22,8 @@ export class AdministrationComponent {
   readonly confirmId = signal<number | null>(null);
   readonly editingUserId = signal<number | null>(null);
   readonly resettingPasswordUserId = signal<number | null>(null);
+  readonly showNewUserPassword = signal(false);
+  readonly showResetPassword = signal(false);
 
   readonly selectedUserId = signal<number | null>(null);
   readonly balances = signal<Balance[]>([]);
@@ -104,12 +106,25 @@ export class AdministrationComponent {
     }
     this.api.createUser(body).subscribe({
       next: () => {
-        this.notice.set('Person added.');
+        this.notice.set('Person added. Welcome email and 24h setup link sent.');
+        this.showNewUserPassword.set(false);
         this.userForm.reset({ firstName: '', lastName: '', email: '', password: '', role: 'EMPLOYEE', managerId: '' });
         this.session.load();
       },
       error: (err) => this.error.set(errorText(err))
     });
+  }
+
+  generateNewUserPassword(): void {
+    const pwd = generateSecurePassword(12);
+    this.userForm.controls.password.setValue(pwd);
+    this.showNewUserPassword.set(true);
+  }
+
+  generateResetUserPassword(): void {
+    const pwd = generateSecurePassword(12);
+    this.resetPasswordForm.controls.newPassword.setValue(pwd);
+    this.showResetPassword.set(true);
   }
 
   startEditUser(user: AppUser): void {
@@ -170,11 +185,13 @@ export class AdministrationComponent {
     this.error.set('');
     this.notice.set('');
     this.editingUserId.set(null);
+    this.showResetPassword.set(false);
     this.resettingPasswordUserId.set(userId);
     this.resetPasswordForm.reset({ newPassword: '' });
   }
 
   cancelResetPassword(): void {
+    this.showResetPassword.set(false);
     this.resettingPasswordUserId.set(null);
   }
 
@@ -186,8 +203,9 @@ export class AdministrationComponent {
     const { newPassword } = this.resetPasswordForm.getRawValue();
     this.api.resetUserPassword(userId, newPassword).subscribe({
       next: () => {
+        this.showResetPassword.set(false);
         this.resettingPasswordUserId.set(null);
-        this.notice.set('User password has been reset.');
+        this.notice.set('User password has been reset and notification email sent.');
       },
       error: (err) => this.error.set(errorText(err))
     });

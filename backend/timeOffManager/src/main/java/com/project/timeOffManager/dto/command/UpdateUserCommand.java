@@ -10,13 +10,18 @@ public record UpdateUserCommand(String firstName,
                                 String password,
                                 Role role,
                                 Long managerId,
-                                Boolean clearManager) {
+                                Boolean clearManager,
+                                Boolean generateRandomPassword) {
+
+    public UpdateUserCommand(String firstName, String lastName, String email, String password, Role role, Long managerId, Boolean clearManager) {
+        this(firstName, lastName, email, password, role, managerId, clearManager, false);
+    }
 
     public UpdateUserCommand(String firstName, String lastName, Role role, Long managerId, Boolean clearManager) {
-        this(firstName, lastName, null, null, role, managerId, clearManager);
+        this(firstName, lastName, null, null, role, managerId, clearManager, false);
     }
 
     public UpdateUserCommand(String firstName, String lastName, Role role, Long managerId) {
-        this(firstName, lastName, null, null, role, managerId, false);
+        this(firstName, lastName, null, null, role, managerId, false, false);
     }
 }

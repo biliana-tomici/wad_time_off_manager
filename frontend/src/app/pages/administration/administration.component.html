@@ -56,11 +56,17 @@
             <form class="stack" style="padding: 12px 0; border-top: 1px solid var(--line);" [formGroup]="resetPasswordForm" (ngSubmit)="saveResetPassword(user.id)">
               <div>
                 <b>Set new password for {{ fullName(user) }}</b>
-                <span class="sub">Minimum 6 characters.</span>
+                <span class="sub">Minimum 6 characters. A reset notification email and 24h link will be sent.</span>
               </div>
-              <label class="field">New password
-                <input type="password" formControlName="newPassword" placeholder="Enter new password" autocomplete="new-password" />
-              </label>
+              <div class="field">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span>New password</span>
+                  <button type="button" class="btn ghost" style="padding: 2px 8px; font-size: 0.78rem;" (click)="generateResetUserPassword()">
+                    Generate secure password
+                  </button>
+                </div>
+                <input [type]="showResetPassword() ? 'text' : 'password'" formControlName="newPassword" placeholder="Enter new password" autocomplete="new-password" />
+              </div>
               <div class="row-actions">
                 <button type="submit" class="btn primary">Update password</button>
                 <button type="button" class="btn ghost" (click)="cancelResetPassword()">Cancel</button>
@@ -179,9 +185,15 @@
         <label class="field">Email address
           <input type="email" formControlName="email" placeholder="first.last@timeoff.com (optional)" />
         </label>
-        <label class="field">Initial password
-          <input type="password" formControlName="password" placeholder="Default: password123" autocomplete="new-password" />
-        </label>
+        <div class="field">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Initial password</span>
+            <button type="button" class="btn ghost" style="padding: 2px 8px; font-size: 0.78rem;" (click)="generateNewUserPassword()">
+              Generate secure password
+            </button>
+          </div>
+          <input [type]="showNewUserPassword() ? 'text' : 'password'" formControlName="password" placeholder="Default: password123" autocomplete="new-password" />
+        </div>
         <label class="field">Role
           <select formControlName="role">
             @for (r of roles; track r) {

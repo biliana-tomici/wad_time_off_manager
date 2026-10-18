@@ -10,9 +10,14 @@ public record CreateUserCommand(@NotBlank String firstName,
                                 @Email(message = "Must be a valid email address") String email,
                                 String password,
                                 Role role,
-                                Long managerId) {
+                                Long managerId,
+                                Boolean generateRandomPassword) {
+
+    public CreateUserCommand(String firstName, String lastName, String email, String password, Role role, Long managerId) {
+        this(firstName, lastName, email, password, role, managerId, false);
+    }
 
     public CreateUserCommand(String firstName, String lastName, Role role, Long managerId) {
-        this(firstName, lastName, null, null, role, managerId);
+        this(firstName, lastName, null, null, role, managerId, false);
     }
 }

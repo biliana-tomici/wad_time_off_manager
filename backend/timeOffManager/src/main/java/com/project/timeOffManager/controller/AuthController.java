@@ -1,8 +1,11 @@
 package com.project.timeOffManager.controller;
 
 import com.project.timeOffManager.dto.AuthResponseDto;
+import com.project.timeOffManager.dto.ForgotPasswordResponseDto;
 import com.project.timeOffManager.dto.UserDto;
 import com.project.timeOffManager.dto.command.ChangePasswordCommand;
+import com.project.timeOffManager.dto.command.ConfirmResetPasswordCommand;
+import com.project.timeOffManager.dto.command.ForgotPasswordCommand;
 import com.project.timeOffManager.dto.command.LoginCommand;
 import com.project.timeOffManager.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,6 +13,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -44,5 +49,28 @@ public class AuthController {
     public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordCommand command) {
         authService.changeOwnPassword(command);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Request a password reset email with a one-time token link")
+    @ApiResponse(responseCode = "200", description = "Password reset request processed")
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ForgotPasswordResponseDto> forgotPassword(@Valid @RequestBody ForgotPasswordCommand command) {
+        return ResponseEntity.ok(authService.requestPasswordReset(command.email()));
+    }
+
+    @Operation(summary = "Reset password using a one-time reset token")
+    @ApiResponse(responseCode = "204", description = "Password reset successfully")
+    @ApiResponse(responseCode = "409", description = "Invalid or expired reset token")
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ConfirmResetPasswordCommand command) {
+        authService.resetPasswordWithToken(command);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Generate a randomized secure password")
+    @ApiResponse(responseCode = "200", description = "Generated password returned")
+    @GetMapping("/generate-password")
+    public ResponseEntity<Map<String, String>> generatePassword() {
+        return ResponseEntity.ok(Map.of("password", authService.generateRandomPassword()));
     }
 }

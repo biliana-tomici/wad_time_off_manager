@@ -81,11 +81,14 @@
           autocomplete="current-password"
         />
         <input
-          type="password"
+          [type]="showNewPassword() ? 'text' : 'password'"
           formControlName="newPassword"
           placeholder="New password (min 6)"
           autocomplete="new-password"
         />
+        <button type="button" class="sidebar-btn" (click)="generateNewPassword()">
+          Generate secure password
+        </button>
         <div class="sidebar-actions">
           <button type="submit" class="sidebar-btn primary" [disabled]="savingPassword()">Save</button>
           <button type="button" class="sidebar-btn" (click)="togglePasswordForm()">Cancel</button>

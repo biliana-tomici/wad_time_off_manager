@@ -496,4 +496,89 @@ class TimeOffManagerApplicationTests {
 		AuthResponseDto eveAfterReset = authService.login(new LoginCommand("eve.davis@timeoff.com", "adminReset789"));
 		assertNotNull(eveAfterReset.token());
 	}
+
+	@Autowired
+	private com.project.timeOffManager.service.EmailService emailService;
+
+	@Test
+	void phase3b_mailingServiceTokenResetAndRandomPasswords() throws Exception {
+		emailService.clearSentEmails();
+
+		// 1. Generate randomized secure password endpoint
+		mockMvc.perform(get("/api/auth/generate-password"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.password").isNotEmpty());
+
+		// 2. New account creation with generateRandomPassword=true sends welcome email with random password & 24h setup token
+		asUser(1L, () -> {
+			UserDto created = userService.createUser(
+					new CreateUserCommand("Diana", "Prince", "diana.prince@timeoff.com", null, Role.EMPLOYEE, 1L, true)
+			);
+			assertEquals("diana.prince@timeoff.com", created.email());
+		});
+
+		List<com.project.timeOffManager.service.EmailService.SentEmail> emails = emailService.getSentEmails();
+		assertEquals(1, emails.size());
+		com.project.timeOffManager.service.EmailService.SentEmail welcomeMail = emails.getFirst();
+		assertEquals("diana.prince@timeoff.com", welcomeMail.to());
+		assertNotNull(welcomeMail.temporaryPassword());
+		assertTrue(welcomeMail.temporaryPassword().length() >= 8);
+		assertNotNull(welcomeMail.resetToken());
+		assertTrue(welcomeMail.body().contains("/reset-password?token=" + welcomeMail.resetToken()));
+
+		// Can login immediately with the generated random password
+		AuthResponseDto dianaLogin = authService.login(
+				new LoginCommand("diana.prince@timeoff.com", welcomeMail.temporaryPassword())
+		);
+		assertNotNull(dianaLogin.token());
+
+		// Or use the welcome email's setup token to set a custom password
+		mockMvc.perform(post("/api/auth/reset-password")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"token\":\"" + welcomeMail.resetToken() + "\",\"newPassword\":\"customPass999\"}"))
+				.andExpect(status().isNoContent());
+
+		assertNotNull(authService.login(new LoginCommand("diana.prince@timeoff.com", "customPass999")).token());
+
+		// Reusing the one-time token fails with 409 Conflict
+		mockMvc.perform(post("/api/auth/reset-password")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"token\":\"" + welcomeMail.resetToken() + "\",\"newPassword\":\"anotherPass123\"}"))
+				.andExpect(status().isConflict());
+
+		// 3. Forgot password flow with randomized password option on token reset
+		emailService.clearSentEmails();
+		com.project.timeOffManager.dto.ForgotPasswordResponseDto forgotRes =
+				authService.requestPasswordReset("diana.prince@timeoff.com");
+		assertNotNull(forgotRes.resetToken());
+		assertEquals(1, emailService.getSentEmails().size());
+
+		// Reset using token + generateRandomPassword=true
+		emailService.clearSentEmails();
+		mockMvc.perform(post("/api/auth/reset-password")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"token\":\"" + forgotRes.resetToken() + "\",\"generateRandomPassword\":true}"))
+				.andExpect(status().isNoContent());
+
+		assertEquals(1, emailService.getSentEmails().size());
+		String generatedViaReset = emailService.getSentEmails().getFirst().temporaryPassword();
+		assertNotNull(generatedViaReset);
+		assertNotNull(authService.login(new LoginCommand("diana.prince@timeoff.com", generatedViaReset)).token());
+
+		// 4. Admin reset password with generateRandomPassword=true sends email with generated password & token
+		emailService.clearSentEmails();
+		AuthResponseDto adminAuth = authService.login(new LoginCommand("alice.smith@timeoff.com", "password123"));
+		mockMvc.perform(put("/api/users/5/password")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + adminAuth.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"generateRandomPassword\":true}"))
+				.andExpect(status().isNoContent());
+
+		assertEquals(1, emailService.getSentEmails().size());
+		com.project.timeOffManager.service.EmailService.SentEmail adminResetMail = emailService.getSentEmails().getFirst();
+		assertEquals("eve.davis@timeoff.com", adminResetMail.to());
+		assertNotNull(adminResetMail.temporaryPassword());
+		assertNotNull(adminResetMail.resetToken());
+		assertNotNull(authService.login(new LoginCommand("eve.davis@timeoff.com", adminResetMail.temporaryPassword())).token());
+	}
 }

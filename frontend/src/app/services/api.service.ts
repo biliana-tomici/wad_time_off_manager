@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { API_BASE } from '../api-base';
-import { AppUser, AuthResponse, Balance, CalendarResponse, Page, Project, Status, TimePeriod, TimeRequest } from '../models';
+import { AppUser, AuthResponse, Balance, CalendarResponse, ForgotPasswordResponse, Page, Project, Status, TimePeriod, TimeRequest } from '../models';
 
 function asList<T>(source: Observable<Page<T>>): Observable<T[]> {
   return source.pipe(
@@ -23,12 +23,24 @@ export class ApiService {
     return this.http.get<AppUser>(`${API_BASE}/api/auth/me`);
   }
 
-  changePassword(currentPassword: string, newPassword: string): Observable<void> {
-    return this.http.post<void>(`${API_BASE}/api/auth/change-password`, { currentPassword, newPassword });
+  changePassword(currentPassword: string, newPassword: string, generateRandomPassword = false): Observable<void> {
+    return this.http.post<void>(`${API_BASE}/api/auth/change-password`, { currentPassword, newPassword, generateRandomPassword });
   }
 
-  resetUserPassword(userId: number, newPassword: string): Observable<void> {
-    return this.http.put<void>(`${API_BASE}/api/users/${userId}/password`, { newPassword });
+  forgotPassword(email: string): Observable<ForgotPasswordResponse> {
+    return this.http.post<ForgotPasswordResponse>(`${API_BASE}/api/auth/forgot-password`, { email });
+  }
+
+  resetPasswordWithToken(token: string, newPassword: string, generateRandomPassword = false): Observable<void> {
+    return this.http.post<void>(`${API_BASE}/api/auth/reset-password`, { token, newPassword, generateRandomPassword });
+  }
+
+  generatePassword(): Observable<{ password: string }> {
+    return this.http.get<{ password: string }>(`${API_BASE}/api/auth/generate-password`);
+  }
+
+  resetUserPassword(userId: number, newPassword: string, generateRandomPassword = false): Observable<void> {
+    return this.http.put<void>(`${API_BASE}/api/users/${userId}/password`, { newPassword, generateRandomPassword });
   }
 
   users(): Observable<AppUser[]> {

@@ -17,6 +17,6 @@ export class AppComponent {
   private readonly router = inject(Router);
 
   isLoginView(): boolean {
-    return this.router.url.startsWith('/login');
+    return this.router.url.startsWith('/login') || this.router.url.startsWith('/reset-password');
   }
 }

@@ -43,6 +43,12 @@ export interface AuthResponse {
   user: AppUser;
 }
 
+export interface ForgotPasswordResponse {
+  message: string;
+  resetToken?: string | null;
+  resetLink?: string | null;
+}
+
 export interface TimeRequest {
   id: number;
   employeeId?: number | null;
