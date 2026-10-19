@@ -9,7 +9,6 @@
   </header>
 
   @if (error()) { <div class="banner error">{{ error() }}</div> }
-  @if (notice()) { <div class="banner">{{ notice() }}</div> }
 
   <div class="stats">
     <article class="card stat">
@@ -32,25 +31,7 @@
 
   <div class="section-title">
     <h3>Allowances</h3>
-    <button type="button" class="btn ghost" (click)="showAllowance.set(!showAllowance())">
-      {{ showAllowance() ? 'Close' : 'Add allowance' }}
-    </button>
   </div>
-
-  @if (showAllowance()) {
-    <form class="card inline" [formGroup]="allowanceForm" (ngSubmit)="addAllowance()">
-      <label class="field">Name
-        <input formControlName="name" />
-      </label>
-      <label class="field">Days left
-        <input type="number" min="0" formControlName="daysLeft" />
-      </label>
-      <label class="field">Maximum
-        <input type="number" min="1" formControlName="maxDays" />
-      </label>
-      <button class="btn pine" type="submit">Save</button>
-    </form>
-  }
 
   @if (balances().length === 0) {
     <p class="empty">No allowances yet for this person.</p>
@@ -60,10 +41,12 @@
         <article class="card">
           <div class="section-title">
             <h3>{{ balance.name }}</h3>
-            <button type="button" class="btn danger" (click)="removeBalance(balance)">Remove</button>
           </div>
           <div class="meter" aria-hidden="true"><span [style.width.%]="percent(balance)"></span></div>
-          <p><b>{{ balance.daysLeft }}</b> of {{ balance.maxDays }} days left</p>
+          <p>
+            <b>{{ balance.daysLeft }}</b> of {{ balance.maxDays }} days left
+            <span class="muted"> · {{ reservedDays(balance) }} reserved by pending requests</span>
+          </p>
         </article>
       }
     </div>
@@ -83,8 +66,8 @@
         @for (request of recent(); track request.id) {
           <div class="kv">
             <div>
-              <b>{{ request.balance?.name || 'Leave' }}</b>
-              <span class="sub">{{ prettyDate(request.startDate) }} – {{ prettyDate(request.endDate) }} · {{ inclusiveDays(request.startDate, request.endDate) }} days</span>
+              <b>{{ request.balanceName || 'Leave' }}</b>
+              <span class="sub">{{ prettyDate(request.startDate) }} – {{ prettyDate(request.endDate) }} · {{ workingDays(request.startDate, request.endDate) }} days</span>
             </div>
             <span class="pill pill-{{ request.status.toLowerCase() }}">{{ statusLabel(request.status) }}</span>
           </div>

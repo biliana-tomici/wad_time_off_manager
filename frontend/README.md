@@ -1,59 +1,67 @@
-# Frontend
+# Time Off Manager — Frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.2.15.
+Modern Single Page Application (SPA) built with Angular 19 for the Time Off Manager platform.
 
-## Development server
+---
 
-To start a local development server, run:
+## Tech Stack & Architecture
 
-```bash
-ng serve
-```
+- **Framework:** Angular 19.2 (Standalone Components, Signals, Control Flow `@if` / `@for`)
+- **Language:** TypeScript 5.7+
+- **Styling:** SCSS, responsive CSS grid/flexbox
+- **State Management:** Angular Signals & Services (`SessionService`, `ApiService`, `ToastService`)
+- **Authentication:** JWT Bearer token authentication via `AuthInterceptor` and functional route guards (`roleGuard`)
+- **HTTP Client:** Angular `HttpClient` using relative URLs (`/api/...`)
+- **Development Proxy:** Angular CLI dev server configured via `proxy.conf.json` to proxy `/api` calls to `http://localhost:8080`
+- **Production Serving:** Nginx container reverse-proxying `/api` directly to backend container (same-origin, no CORS)
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+---
 
-## Code scaffolding
+## Prerequisites
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+- **Node.js 20+ (LTS)**
+- **npm** (bundled with Node.js)
 
-```bash
-ng generate component component-name
-```
+---
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Setup & Running Locally
 
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
+### 1. Install Dependencies
 
 ```bash
-ng build
+npm install
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+### 2. Start the Development Server
 
 ```bash
-ng test
+npm start
 ```
+*(Executes `ng serve --proxy-config proxy.conf.json`)*
 
-## Running end-to-end tests
+- Navigate to [http://localhost:4200/](http://localhost:4200/).
+- Source file changes trigger automatic hot reload.
+- Requests to `/api/*` are forwarded to the local backend on `http://localhost:8080/api/*`.
 
-For end-to-end (e2e) testing, run:
+---
 
-```bash
-ng e2e
-```
+## Application Pages & Modules
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+- **Login (`/login`):** Email and password authentication with "Forgot Password" self-service recovery link.
+- **Password Reset (`/reset-password`):** One-time token password reset page opened from email links.
+- **Overview (`/home`):** Dashboard showing remaining allowances, days reserved by pending requests, recent submissions, and quick actions.
+- **New Request (`/new-request`):** Leave submission form with real-time working days calculation (Mon-Fri) and balance availability checks.
+- **Request History (`/request-history`):** Tabular log of personal requests with sorting, filtering, edit, and cancel actions.
+- **Projects & Reports (`/projects`):** Project roster management, `minEmp` staffing requirements, team assignment, and PDF report downloads.
+- **Approvals (`/approvals`):** Manager/Admin queue for pending and modified leave requests with project staffing (`minEmp`) shortage alerts.
+- **Administration (`/administration`):** Admin-only user management (account creation, role assignments, soft delete, password resets) and allowance allocation.
+- **Team Absence Calendar (`/calendar`):** Monthly absence calendar with leave-type color codes, pending indicators, and daily staffing coverage meters.
 
-## Additional Resources
+---
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+## Available NPM Scripts
+
+- `npm start`: Starts the local dev server on port `4200` with the API proxy.
+- `npm run build`: Generates optimized production build in `dist/frontend/browser`.
+- `npm run watch`: Builds and watches for changes in development mode.
+- `npm test`: Runs unit tests via Karma and Jasmine.

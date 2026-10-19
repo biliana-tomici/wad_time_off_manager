@@ -1,0 +1,199 @@
+<section>
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Team Calendar</p>
+      <h2>Organizational Availability.</h2>
+      <p class="lede">Track scheduled team absences, coverage thresholds against project minimums, and pending submissions.</p>
+    </div>
+  </header>
+
+  @if (error()) { <div class="banner error">{{ error() }}</div> }
+  @if (notice()) { <div class="banner">{{ notice() }}</div> }
+
+  <!-- Calendar Controls & Legend Bar -->
+  <div class="calendar-toolbar card">
+    <div class="nav-controls">
+      <button type="button" class="btn ghost" (click)="prevMonth()" title="Previous month">&lsaquo; Prev</button>
+      <button type="button" class="btn ghost" (click)="goToToday()">Today</button>
+      <button type="button" class="btn ghost" (click)="nextMonth()" title="Next month">Next &rsaquo;</button>
+      <h3 class="current-month-label">{{ monthTitle() }}</h3>
+    </div>
+
+    <div class="filter-controls">
+      <label class="project-filter-label">
+        Project:
+        <select [value]="selectedProjectId() ?? ''" (change)="filterProject($any($event.target).value)">
+          <option value="">All visible projects</option>
+          @for (proj of projects(); track proj.id) {
+            <option [value]="proj.id">{{ proj.name }} (min: {{ proj.minEmp }})</option>
+          }
+        </select>
+      </label>
+    </div>
+
+    <div class="legend-bar">
+      <span class="legend-item"><span class="legend-dot dot-vacation"></span> Vacation</span>
+      <span class="legend-item"><span class="legend-dot dot-sick"></span> Sick Leave</span>
+      <span class="legend-item"><span class="legend-dot dot-personal"></span> Personal</span>
+      <span class="legend-item"><span class="legend-dot dot-hatched"></span> Pending</span>
+      <span class="legend-item"><span class="legend-badge-sample">⚠ min</span> Understaffed</span>
+    </div>
+  </div>
+
+  <!-- Month Grid -->
+  <div class="calendar-wrapper card">
+    @if (loading()) {
+      <div class="calendar-loading-overlay">
+        <p class="muted">Loading calendar absences…</p>
+      </div>
+    }
+
+    <!-- Weekday Header -->
+    <div class="calendar-weekdays">
+      <div class="weekday-cell">Mon</div>
+      <div class="weekday-cell">Tue</div>
+      <div class="weekday-cell">Wed</div>
+      <div class="weekday-cell">Thu</div>
+      <div class="weekday-cell">Fri</div>
+      <div class="weekday-cell weekend">Sat</div>
+      <div class="weekday-cell weekend">Sun</div>
+    </div>
+
+    <!-- Day Grid -->
+    <div class="calendar-grid">
+      @for (day of gridDays(); track day.isoString) {
+        <div
+          class="calendar-day-cell"
+          [class.outside-month]="!day.isCurrentMonth"
+          [class.weekend]="day.isWeekend"
+          [class.today]="day.isToday"
+          [class.selected]="selectedDayIso() === day.isoString"
+          [class.has-understaffed]="day.understaffed"
+          (click)="selectDay(day)"
+        >
+          <div class="day-cell-header">
+            <span class="day-number" [class.today-badge]="day.isToday">{{ day.dayNumber }}</span>
+
+            @if (day.isWeekend) {
+              <span class="weekend-badge" title="Weekend (Non-working day)">Weekend</span>
+            } @else if (day.understaffed) {
+              <span class="understaffed-pill" title="Project staffing dropped below minimum headcount">
+                ⚠ Staffing
+              </span>
+            }
+          </div>
+
+          <!-- Absence Pills -->
+          <div class="day-cell-absences">
+            @for (absence of day.absences.slice(0, 3); track absence.requestId) {
+              <div
+                class="absence-chip"
+                [class]="leaveTypeClass(absence.balanceName)"
+                [class.absence-hatched]="absence.status === 'PENDING' || absence.status === 'EDITED'"
+                [title]="absence.employeeName + ' · ' + (absence.balanceName || 'Leave') + ' (' + statusLabel(absence.status) + ')'"
+              >
+                <span class="chip-name">{{ absence.employeeName }}</span>
+                @if (absence.status === 'PENDING' || absence.status === 'EDITED') {
+                  <span class="chip-status-mark">?</span>
+                }
+              </div>
+            }
+            @if (day.absences.length > 3) {
+              <div class="absence-more-label">+{{ day.absences.length - 3 }} more</div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Interactive Day Detail Modal / Panel -->
+  @if (selectedDayData(); as dayData) {
+    <div class="modal-backdrop" (click)="closeDayModal()">
+      <div class="modal-card card stack" (click)="$event.stopPropagation()">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Day Overview</p>
+            <h3>{{ prettyDate(dayData.isoString) }}</h3>
+          </div>
+          <button type="button" class="btn ghost close-btn" (click)="closeDayModal()">&times;</button>
+        </div>
+
+        @if (dayData.isWeekend) {
+          <div class="banner info" style="margin-bottom: 4px;">
+            <strong>Weekend (Non-working day)</strong> · Leaves and staffing requirements are not counted on weekends.
+          </div>
+        }
+
+        <!-- Coverage Breakdown for Selected Day -->
+        @if (dayData.coverages.length > 0) {
+          <div class="stack" style="gap: 8px;">
+            <h4>Project Staffing Coverage</h4>
+            @for (cov of dayData.coverages; track cov.projectId) {
+              <div class="coverage-row" [class.coverage-understaffed]="cov.understaffed">
+                <div class="cov-info">
+                  <b>{{ cov.projectName }}</b>
+                  <span class="sub">
+                    {{ cov.availableCount }} available of {{ cov.totalMembers }} team member(s) (min required: {{ cov.minEmp }})
+                  </span>
+                </div>
+                <div>
+                  @if (cov.understaffed) {
+                    <span class="pill pill-rejected">Understaffed</span>
+                  } @else {
+                    <span class="pill pill-approved">Covered</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Absent People List -->
+        <div class="stack" style="gap: 8px; margin-top: 8px;">
+          <h4>Absent Team Members ({{ dayData.absences.length }})</h4>
+          @if (dayData.absences.length === 0) {
+            <p class="muted">No scheduled absences on this date. Everyone is available.</p>
+          } @else {
+            @for (abs of dayData.absences; track abs.requestId) {
+              <div class="absence-detail-card" [class.is-pending]="abs.status === 'PENDING' || abs.status === 'EDITED'">
+                <div class="kv" style="align-items: center;">
+                  <div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <b>{{ abs.employeeName }}</b>
+                      <span
+                        class="pill"
+                        [class.pill-pending]="abs.status === 'PENDING' || abs.status === 'EDITED'"
+                        [class.pill-approved]="abs.status === 'APPROVED'"
+                      >
+                        {{ statusLabel(abs.status) }}
+                      </span>
+                    </div>
+                    <span class="sub">
+                      {{ abs.balanceName || 'Leave' }} · {{ prettyDate(abs.startDate) }} – {{ prettyDate(abs.endDate) }}
+                      · {{ abs.workingDays }} working day(s)
+                    </span>
+                    @if (abs.explanation) {
+                      <p class="meta" style="margin-top: 4px;">{{ abs.explanation }}</p>
+                    }
+                  </div>
+
+                  @if ((abs.status === 'PENDING' || abs.status === 'EDITED') && session.isManager()) {
+                    <div class="row-actions">
+                      <button type="button" class="btn pine" (click)="quickApprove(abs.requestId)">Approve</button>
+                      <a class="btn ghost" routerLink="/approvals">Review in Queue</a>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          }
+        </div>
+
+        <div class="row-actions" style="justify-content: flex-end; margin-top: 14px;">
+          <button type="button" class="btn primary" (click)="closeDayModal()">Done</button>
+        </div>
+      </div>
+    </div>
+  }
+</section>

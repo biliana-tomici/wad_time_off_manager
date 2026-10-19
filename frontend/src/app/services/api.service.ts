@@ -1,14 +1,13 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, throwError } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { API_BASE } from '../api-base';
-import { AppUser, Balance, Page, Project, Status, TimePeriod, TimeRequest } from '../models';
+import { AppUser, AuthResponse, Balance, CalendarResponse, ForgotPasswordResponse, Page, Project, Status, TimePeriod, TimeRequest } from '../models';
 
 function asList<T>(source: Observable<Page<T>>): Observable<T[]> {
   return source.pipe(
-    map((page) => page?.content ?? []),
-    catchError((err) => (err?.status === 404 ? of([]) : throwError(() => err)))
+    map((page) => page?.content ?? [])
   );
 }
 
@@ -16,8 +15,36 @@ function asList<T>(source: Observable<Page<T>>): Observable<T[]> {
 export class ApiService {
   private readonly http = inject(HttpClient);
 
+  login(email: string, password: string): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${API_BASE}/api/auth/login`, { email, password });
+  }
+
+  me(): Observable<AppUser> {
+    return this.http.get<AppUser>(`${API_BASE}/api/auth/me`);
+  }
+
+  changePassword(currentPassword: string, newPassword: string, generateRandomPassword = false): Observable<void> {
+    return this.http.post<void>(`${API_BASE}/api/auth/change-password`, { currentPassword, newPassword, generateRandomPassword });
+  }
+
+  forgotPassword(email: string): Observable<ForgotPasswordResponse> {
+    return this.http.post<ForgotPasswordResponse>(`${API_BASE}/api/auth/forgot-password`, { email });
+  }
+
+  resetPasswordWithToken(token: string, newPassword: string, generateRandomPassword = false): Observable<void> {
+    return this.http.post<void>(`${API_BASE}/api/auth/reset-password`, { token, newPassword, generateRandomPassword });
+  }
+
+  generatePassword(): Observable<{ password: string }> {
+    return this.http.get<{ password: string }>(`${API_BASE}/api/auth/generate-password`);
+  }
+
+  resetUserPassword(userId: number, newPassword: string, generateRandomPassword = false): Observable<void> {
+    return this.http.put<void>(`${API_BASE}/api/users/${userId}/password`, { newPassword, generateRandomPassword });
+  }
+
   users(): Observable<AppUser[]> {
-    return this.http.get<AppUser[]>(`${API_BASE}/api/customer`);
+    return this.http.get<AppUser[]>(`${API_BASE}/api/users`);
   }
 
   balances(employeeId: number): Observable<Balance[]> {
@@ -32,9 +59,13 @@ export class ApiService {
     }));
   }
 
-  pending(managerId: number): Observable<TimeRequest[]> {
+  pending(managerId: number, includeUnassigned?: boolean): Observable<TimeRequest[]> {
+    const params: Record<string, string> = { page: '0', size: '100' };
+    if (includeUnassigned !== undefined) {
+      params['includeUnassigned'] = String(includeUnassigned);
+    }
     return asList(this.http.get<Page<TimeRequest>>(`${API_BASE}/api/request/pending/${managerId}`, {
-      params: { page: '0', size: '100' }
+      params
     }));
   }
 
@@ -52,6 +83,18 @@ export class ApiService {
     });
   }
 
+  cancelRequest(id: number): Observable<TimeRequest> {
+    return this.http.post<TimeRequest>(`${API_BASE}/api/request/${id}/cancel`, null);
+  }
+
+  approveRequest(id: number, comment?: string): Observable<TimeRequest> {
+    return this.http.post<TimeRequest>(`${API_BASE}/api/request/${id}/approve`, comment ? { comment } : null);
+  }
+
+  rejectRequest(id: number, comment?: string): Observable<TimeRequest> {
+    return this.http.post<TimeRequest>(`${API_BASE}/api/request/${id}/reject`, comment ? { comment } : null);
+  }
+
   deleteRequest(id: number): Observable<void> {
     return this.http.delete<void>(`${API_BASE}/api/request/${id}`);
   }
@@ -66,12 +109,24 @@ export class ApiService {
     return this.http.post<Project>(`${API_BASE}/api/projects`, body);
   }
 
-  updateProject(id: number, body: unknown): Observable<Project> {
+  updateProject(id: number, body: { name?: string; minEmp?: number; managerId?: number }): Observable<Project> {
     return this.http.put<Project>(`${API_BASE}/api/projects/${id}`, body);
   }
 
   deleteProject(id: number): Observable<void> {
     return this.http.delete<void>(`${API_BASE}/api/projects/${id}`);
+  }
+
+  projectMembers(projectId: number): Observable<AppUser[]> {
+    return this.http.get<AppUser[]>(`${API_BASE}/api/projects/${projectId}/members`);
+  }
+
+  addProjectMember(projectId: number, employeeId: number): Observable<void> {
+    return this.http.post<void>(`${API_BASE}/api/projects/${projectId}/members/${employeeId}`, null);
+  }
+
+  removeProjectMember(projectId: number, employeeId: number): Observable<void> {
+    return this.http.delete<void>(`${API_BASE}/api/projects/${projectId}/members/${employeeId}`);
   }
 
   report(projectId: number, timePeriod: TimePeriod): Observable<Blob> {
@@ -85,15 +140,31 @@ export class ApiService {
     return this.http.post<Balance>(`${API_BASE}/api/balance`, body);
   }
 
+  updateBalance(id: number, body: { name?: string; daysLeft?: number; maxDays?: number }): Observable<Balance> {
+    return this.http.put<Balance>(`${API_BASE}/api/balance/${id}`, body);
+  }
+
   deleteBalance(id: number): Observable<void> {
     return this.http.delete<void>(`${API_BASE}/api/balance/${id}`);
   }
 
   createUser(body: unknown): Observable<AppUser> {
-    return this.http.post<AppUser>(`${API_BASE}/api/customer`, body);
+    return this.http.post<AppUser>(`${API_BASE}/api/users`, body);
+  }
+
+  updateUser(id: number, body: unknown): Observable<AppUser> {
+    return this.http.put<AppUser>(`${API_BASE}/api/users/${id}`, body);
   }
 
   deleteUser(id: number): Observable<void> {
-    return this.http.delete<void>(`${API_BASE}/api/customer/${id}`);
+    return this.http.delete<void>(`${API_BASE}/api/users/${id}`);
+  }
+
+  calendar(from?: string, to?: string, projectId?: number): Observable<CalendarResponse> {
+    const params: Record<string, string> = {};
+    if (from) params['from'] = from;
+    if (to) params['to'] = to;
+    if (projectId) params['projectId'] = String(projectId);
+    return this.http.get<CalendarResponse>(`${API_BASE}/api/calendar`, { params });
   }
 }

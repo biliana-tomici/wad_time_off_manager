@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Router, RouterOutlet } from '@angular/router';
 import { SidebarComponent } from './common/sidebar/sidebar.component';
 import { HeaderComponent } from './common/header/header.component';
 import { SessionService } from './services/session.service';
@@ -14,4 +14,9 @@ import { SessionService } from './services/session.service';
 export class AppComponent {
   title = 'frontend';
   readonly session = inject(SessionService);
+  private readonly router = inject(Router);
+
+  isLoginView(): boolean {
+    return this.router.url.startsWith('/login') || this.router.url.startsWith('/reset-password');
+  }
 }

@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import org.springframework.data.annotation.CreatedDate;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "request")
@@ -18,7 +19,7 @@ public class Request {
     @JoinColumn(name = "employee_id")
     private User employee;
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "balance_id")
     private Balance balance;
 
@@ -33,8 +34,15 @@ public class Request {
     @CreatedDate
     private LocalDate creationDate;
 
-
     private LocalDate modifiedDate;
+
+    @ManyToOne
+    @JoinColumn(name = "decided_by")
+    private User decidedBy;
+
+    private LocalDateTime decidedAt;
+
+    private String decisionComment;
 
     public Request() {
     }
@@ -126,5 +134,29 @@ public class Request {
 
     public void setModifiedDate(LocalDate modifiedDate) {
         this.modifiedDate = modifiedDate;
+    }
+
+    public User getDecidedBy() {
+        return decidedBy;
+    }
+
+    public void setDecidedBy(User decidedBy) {
+        this.decidedBy = decidedBy;
+    }
+
+    public LocalDateTime getDecidedAt() {
+        return decidedAt;
+    }
+
+    public void setDecidedAt(LocalDateTime decidedAt) {
+        this.decidedAt = decidedAt;
+    }
+
+    public String getDecisionComment() {
+        return decisionComment;
+    }
+
+    public void setDecisionComment(String decisionComment) {
+        this.decisionComment = decisionComment;
     }
 }

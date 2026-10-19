@@ -18,6 +18,9 @@ public class Balance {
     private String name;
     private Long maxDays;
 
+    @Version
+    private Long version;
+
     public Balance() {}
 
     public Balance(Long id, User employee, Long daysLeft, String name, Long maxDays) {
@@ -71,5 +74,13 @@ public class Balance {
 
     public void setMaxDays(Long maxDays) {
         this.maxDays = maxDays;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
     }
 }

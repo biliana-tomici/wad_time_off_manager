@@ -4,4 +4,5 @@ import { AppComponent } from './app/app.component';
 import { provideHttpClient } from '@angular/common/http';
 
 bootstrapApplication(AppComponent, appConfig)
-  .catch((err) => console.error());
+  .catch((err) => console.error(err));
+

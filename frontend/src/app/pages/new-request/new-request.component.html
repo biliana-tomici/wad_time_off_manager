@@ -3,7 +3,7 @@
     <div>
       <p class="eyebrow">New request</p>
       <h2>Ask for time away.</h2>
-      <p class="lede">One request uses a single allowance. The length is the inclusive number of days between the two dates.</p>
+      <p class="lede">One request uses a single allowance. The length is counted in working days (Mon–Fri) between the two dates.</p>
     </div>
   </header>
 
@@ -16,7 +16,7 @@
         <select formControlName="balanceId">
           <option value="">Choose an allowance</option>
           @for (balance of balances(); track balance.id) {
-            <option [value]="balance.id">{{ balance.name }} · {{ balance.daysLeft }} days left</option>
+            <option [value]="balance.id">{{ balance.name }} · {{ availableDays(balance) }} available ({{ balance.daysLeft }} remaining, {{ reservedDays(balance) }} reserved)</option>
           }
         </select>
       </label>
@@ -26,14 +26,17 @@
       <label class="field">End
         <input type="date" formControlName="endDate" />
       </label>
-      <label class="field wide">Reason
+      <label class="field wide">Reason (optional)
         <textarea formControlName="explanation" placeholder="Family visit, appointment, trip…"></textarea>
       </label>
       @if (form.hasError('range') && form.touched) {
         <p class="hint wide">The end date has to be on or after the start date.</p>
       }
+      @if (form.hasError('weekendOnly') && form.touched) {
+        <p class="hint wide" style="color: var(--danger); font-weight: 600;">The selected dates fall on a weekend. Weekends are non-working days and are not counted towards time-off.</p>
+      }
       @if (balances().length === 0) {
-        <p class="hint wide">This person has no allowance yet. Add one from Overview.</p>
+        <p class="hint wide">This person has no allowance yet. An administrator must assign one.</p>
       }
       <div class="wide row-actions">
         <button class="btn primary" type="submit" [disabled]="saving() || balances().length === 0">
@@ -45,10 +48,10 @@
     <aside class="card">
       <p class="eyebrow">This request</p>
       <strong class="big">{{ days() || '—' }}</strong>
-      <p>{{ days() === 1 ? 'day' : 'days' }}</p>
+      <p>{{ days() === 1 ? 'working day' : 'working days' }}</p>
       <p class="meta" style="margin-top: 12px;">{{ selectedBalance()?.name || 'No allowance selected' }}</p>
       @if (overBalance()) {
-        <div class="banner warn" style="margin-top: 14px;">Longer than the remaining allowance. The server will still store it.</div>
+        <div class="banner warn" style="margin-top: 14px;">Exceeds available allowance (remaining minus pending reserved days).</div>
       }
     </aside>
   </div>

@@ -1,16 +1,24 @@
 package com.project.timeOffManager.service;
 
 import com.project.timeOffManager.dto.BalanceDto;
+import com.project.timeOffManager.dto.command.CreateBalanceCommand;
+import com.project.timeOffManager.dto.command.UpdateBalanceCommand;
 import com.project.timeOffManager.entity.Balance;
 import com.project.timeOffManager.entity.User;
 import com.project.timeOffManager.mapper.BalanceMapper;
 import com.project.timeOffManager.repository.BalanceRepository;
 import com.project.timeOffManager.repository.UserRepository;
+import com.project.timeOffManager.exception.BusinessRuleException;
+import com.project.timeOffManager.exception.ResourceNotFoundException;
+import com.project.timeOffManager.security.AuthorizationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import com.project.timeOffManager.entity.Request;
+import com.project.timeOffManager.repository.RequestRepository;
+import jakarta.transaction.Transactional;
 import java.util.List;
 
 @Service
@@ -19,67 +27,109 @@ public class BalanceService {
     private final BalanceRepository balanceRepository;
     private final BalanceMapper balanceMapper;
     private final UserRepository userRepository;
+    private final RequestRepository requestRepository;
+    private final AuthorizationService authorizationService;
 
     @Autowired
-    public BalanceService(BalanceRepository balanceRepository, BalanceMapper balanceMapper, UserRepository userRepository) {
+    public BalanceService(BalanceRepository balanceRepository,
+                          BalanceMapper balanceMapper,
+                          UserRepository userRepository,
+                          RequestRepository requestRepository,
+                          AuthorizationService authorizationService) {
         this.balanceRepository = balanceRepository;
         this.balanceMapper = balanceMapper;
         this.userRepository = userRepository;
+        this.requestRepository = requestRepository;
+        this.authorizationService = authorizationService;
     }
 
     public BalanceDto getBalanceById(Long balanceId) {
-
         Balance balance = balanceRepository.findBalanceById(balanceId);
+        if (balance == null) {
+            throw new ResourceNotFoundException("Balance not found with id: " + balanceId);
+        }
+        authorizationService.checkCanViewBalance(balance);
 
         return balanceMapper.toDto(balance);
     }
 
-    public BalanceDto createBalance(BalanceDto balanceDto) {
+    @Transactional
+    public BalanceDto createBalance(CreateBalanceCommand command) {
+        authorizationService.checkCanManageBalances();
 
-        if (balanceDto.employee() == null || balanceDto.employee().id() == null) {
-            return null;
+        User employee = userRepository.findCustomerById(command.employeeId());
+        if (employee == null || !employee.isActive()) {
+            throw new ResourceNotFoundException("Employee not found with id: " + command.employeeId());
         }
 
-        User employee = userRepository.findCustomerById(balanceDto.employee().id());
-        if (employee == null) {
-            return null;
+        if (command.maxDays() <= 0) {
+            throw new BusinessRuleException("Max days must be greater than 0");
+        }
+        if (command.daysLeft() > command.maxDays()) {
+            throw new BusinessRuleException("Days left cannot exceed max days");
         }
 
-        Balance balance = balanceMapper.toEntity(balanceDto);
-        balance.setEmployee(employee);
+        Balance balance = new Balance(null, employee, command.daysLeft(), command.name().trim(), command.maxDays());
         Balance savedBalance = balanceRepository.save(balance);
 
         return balanceMapper.toDto(savedBalance);
     }
 
-    public BalanceDto updateBalance(Long balanceId, BalanceDto balanceDto) {
-        Balance existingBalance = balanceRepository.findBalanceById(balanceId);
+    @Transactional
+    public BalanceDto updateBalance(Long balanceId, UpdateBalanceCommand command) {
+        authorizationService.checkCanManageBalances();
 
+        Balance existingBalance = balanceRepository.findBalanceById(balanceId);
         if (existingBalance == null) {
-            return null;
+            throw new ResourceNotFoundException("Balance not found with id: " + balanceId);
         }
 
-        Balance updatedBalance = balanceMapper.toEntity(balanceDto);
-        balanceMapper.updateBalanceFromDto(balanceDto, updatedBalance);
-        updatedBalance.setId(balanceId);
+        if (command.name() != null) {
+            if (command.name().isBlank()) {
+                throw new BusinessRuleException("Balance name cannot be blank");
+            }
+            existingBalance.setName(command.name().trim());
+        }
+        if (command.daysLeft() != null) {
+            existingBalance.setDaysLeft(command.daysLeft());
+        }
+        if (command.maxDays() != null) {
+            existingBalance.setMaxDays(command.maxDays());
+        }
 
-        return balanceMapper.toDto(balanceRepository.save(updatedBalance));
+        if (existingBalance.getMaxDays() != null && existingBalance.getMaxDays() <= 0) {
+            throw new BusinessRuleException("Max days must be greater than 0");
+        }
+        if (existingBalance.getDaysLeft() != null && existingBalance.getMaxDays() != null
+                && existingBalance.getDaysLeft() > existingBalance.getMaxDays()) {
+            throw new BusinessRuleException("Days left cannot exceed max days");
+        }
 
+        return balanceMapper.toDto(balanceRepository.save(existingBalance));
     }
 
+    @Transactional
     public boolean deleteBalance(Long balanceId) {
+        authorizationService.checkCanManageBalances();
 
-        if (balanceRepository.existsById(balanceId)) {
-            balanceRepository.deleteById(balanceId);
-            return true;
+        Balance balance = balanceRepository.findBalanceById(balanceId);
+        if (balance == null) {
+            throw new ResourceNotFoundException("Balance not found with id: " + balanceId);
         }
 
-        return false;
+        List<Request> requests = requestRepository.findByBalance_Id(balanceId);
+        for (Request request : requests) {
+            request.setBalance(null);
+            requestRepository.save(request);
+        }
+
+        balanceRepository.delete(balance);
+        return true;
     }
 
     public Page<BalanceDto> getBalancesByEmployeeId(Long employeeId, Pageable pageable) {
+        authorizationService.checkCanViewBalances(employeeId);
         return balanceRepository.findByEmployeeId(employeeId, pageable)
                 .map(balanceMapper::toDto);
     }
-
 }

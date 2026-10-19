@@ -20,10 +20,10 @@
       @for (request of pending(); track request.id) {
         <article class="card">
           <div class="section-title">
-            <h3>{{ fullName(request.employee) }}</h3>
+            <h3>{{ request.employeeName || 'Unnamed' }}</h3>
             <span class="pill pill-pending">{{ statusLabel(request.status) }}</span>
           </div>
-          <p>{{ request.balance?.name || 'Leave' }} · {{ prettyDate(request.startDate) }} – {{ prettyDate(request.endDate) }}</p>
+          <p>{{ request.balanceName || 'Leave' }} · {{ prettyDate(request.startDate) }} – {{ prettyDate(request.endDate) }}</p>
           <p class="meta" style="margin: 8px 0 14px;">{{ request.explanation }}</p>
           <div class="row-actions">
             <button type="button" class="btn pine" (click)="decide(request, 'APPROVED')">Approve</button>
